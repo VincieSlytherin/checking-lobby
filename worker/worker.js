@@ -90,8 +90,58 @@ async function handleText(input, env) {
   return { text };
 }
 
+// Image generation is billed per image and has no free tier, so it stays off
+// until ENABLE_IMAGE_GENERATION is explicitly set to "true".
+const IMAGE_MODEL = 'gemini-3.1-flash-image';
+const IMAGE_DAILY_CAP = 20;
+
+async function assertImageQuota(env) {
+  // Optional: bind a KV namespace named IMAGE_QUOTA to enforce a daily ceiling.
+  // Without the binding the cap is simply not applied.
+  if (!env.IMAGE_QUOTA) return;
+
+  const cap = Number(env.IMAGE_DAILY_CAP) || IMAGE_DAILY_CAP;
+  const key = `images-${new Date().toISOString().split('T')[0]}`;
+  const used = Number(await env.IMAGE_QUOTA.get(key)) || 0;
+
+  if (used >= cap) throw new RangeError('今日图片生成额度已用尽');
+
+  // Expires two days out so yesterday's counter cleans itself up.
+  await env.IMAGE_QUOTA.put(key, String(used + 1), { expirationTtl: 172800 });
+}
+
 async function handleImage(input, env) {
-  throw new TypeError('免费层未启用图片生成');
+  if (env.ENABLE_IMAGE_GENERATION !== 'true') {
+    throw new TypeError('图片生成未启用');
+  }
+  if (typeof input.prompt !== 'string') {
+    throw new TypeError('Invalid image request');
+  }
+
+  const prompt = input.prompt.trim();
+  if (!prompt) throw new TypeError('Invalid image request');
+  if (prompt.length > 2000) throw new RangeError('Prompt is too large');
+
+  await assertImageQuota(env);
+
+  const payload = {
+    contents: [{
+      parts: [{
+        text: `A dark, melancholic Rusty Lake style illustration. Muted brass, rust and deep lake-green palette, candlelit gloom, vintage engraved texture. No text or lettering in the image. Scene: ${prompt}`
+      }]
+    }],
+    generationConfig: {
+      responseModalities: ['TEXT', 'IMAGE'],
+      responseFormat: { image: { aspectRatio: '16:9', imageSize: '1K' } }
+    }
+  };
+
+  const result = await googleRequest(IMAGE_MODEL, 'generateContent', payload, env);
+  const parts = result?.candidates?.[0]?.content?.parts || [];
+  const image = parts.find(part => part?.inlineData?.data);
+  if (!image) throw new Error('Empty image response');
+
+  return { data: image.inlineData.data, mimeType: image.inlineData.mimeType || 'image/png' };
 }
 
 async function handleTts(input, env) {

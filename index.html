@@ -226,6 +226,17 @@
         <span id="proxyStatusDot" class="w-2 h-2 rounded-full bg-amber-500"></span>
       </button>
 
+      <button onclick="openBackupModal()" class="px-3 py-1.5 rounded border border-stone-700 bg-stone-900 text-amber-200 hover:border-brass-500 text-xs transition flex items-center gap-1.5">
+        <i class="fa-solid fa-box-archive text-brass-500"></i>
+        <span class="hidden sm:inline">档案备份</span>
+      </button>
+
+      <span class="px-3 py-1.5 rounded border border-stone-800 bg-stone-900 text-stone-400 text-xs flex items-center gap-1.5" title="本机封存状态">
+        <i class="fa-solid fa-vault text-brass-500"></i>
+        <span class="hidden sm:inline">本机封存</span>
+        <span id="persistStatusDot" class="w-2 h-2 rounded-full bg-stone-600"></span>
+      </span>
+
       <!-- Player Profile Badge -->
       <div onclick="openModal('foxModal')" class="flex items-center gap-2 bg-stone-900 border border-brass-700/60 px-3 py-1 rounded cursor-pointer hover:border-brass-500 transition shadow">
         <div class="w-6 h-6 rounded bg-stone-800 flex items-center justify-center border border-brass-500 overflow-hidden">
@@ -519,6 +530,9 @@
               </h2>
               <p class="text-[11px] text-stone-400 mt-0.5">完全支持编辑与彻底擦除。擦除日记会彻底散去对应的记忆。</p>
             </div>
+            <button onclick="openAddDiaryModal()" class="px-3 py-1.5 rounded bg-amber-950 hover:bg-brass-700 border border-brass-500 text-amber-100 text-xs font-bold transition flex items-center gap-1.5 shadow shrink-0">
+              <i class="fa-solid fa-feather-pointed"></i> 手写新的日记页
+            </button>
           </div>
 
           <div id="diaryArchiveContainer" class="space-y-3"></div>
@@ -651,6 +665,96 @@
     </div>
   </div>
 
+  <!-- MODAL: ADD / EDIT DIARY PAGE -->
+  <div id="diaryModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="rusty-card max-w-md w-full p-5 rounded space-y-4 shadow-2xl relative">
+      <div class="flex justify-between items-center border-b border-stone-800 pb-2">
+        <h3 class="text-sm font-bold text-amber-200" id="diaryModalTitle"><i class="fa-solid fa-book-bookmark text-brass-500 mr-2"></i> 烙下星芒日记页</h3>
+        <button onclick="cancelDiaryModal()" class="text-stone-400 hover:text-amber-200"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <input type="hidden" id="editDiaryId" value="" />
+
+      <p id="diaryDraftHint" class="hidden text-[10px] text-amber-300/90 bg-amber-950/40 border border-amber-800/50 rounded px-2 py-1.5">
+        <i class="fa-solid fa-hourglass-half mr-1"></i> 已找回上次未封存的草稿 —— 蜡还没凝固，字迹仍留在纸上。
+      </p>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-stone-300 mb-1">烙印日期</label>
+          <input type="date" id="diaryDateInput" class="w-full bg-stone-950 border border-stone-800 rounded p-2 text-amber-100 focus:outline-none focus:border-brass-500" />
+        </div>
+
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label class="block text-stone-300">日记正文</label>
+            <button type="button" onclick="aiRewriteDiaryText()" id="btnAiRewriteDiary" class="text-[10px] text-brass-400 hover:text-amber-200 transition flex items-center gap-1">
+              <i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i> 灰翅夫人重新熬炼文字
+            </button>
+          </div>
+          <textarea id="diaryTextInput" rows="6" placeholder="写下这一页要烙进星芒皮质封皮的记忆..." class="w-full bg-stone-950 border border-stone-800 rounded p-2 text-amber-100 placeholder-stone-600 focus:outline-none focus:border-brass-500 leading-relaxed"></textarea>
+        </div>
+
+        <div class="rusty-border rounded p-2 bg-stone-950/80 space-y-2">
+          <div class="flex items-center justify-between text-[11px] text-brass-400 font-cinzel">
+            <span><i class="fa-solid fa-image mr-1"></i> 记忆图景插画</span>
+            <button type="button" onclick="clearDiaryModalImage()" id="btnClearDiaryImg" class="hidden text-[10px] text-stone-500 hover:text-rust-400">移除插画</button>
+          </div>
+          <img id="diaryModalImg" alt="Diary Etching" class="hidden w-full max-h-40 object-cover rounded border border-stone-800" />
+          <button type="button" onclick="generateDiaryModalImage()" id="btnDiaryModalImg" class="w-full py-1.5 rounded bg-stone-900 hover:bg-stone-800 border border-amber-600/50 text-amber-200 text-[11px] flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-palette text-amber-400"></i> 使用 Imagen 凝结此页图景
+          </button>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2 border-t border-stone-800">
+        <button onclick="cancelDiaryModal()" class="px-3 py-1.5 rounded border border-stone-700 text-stone-300 text-xs">取消</button>
+        <button onclick="saveDiary()" class="px-4 py-1.5 rounded bg-amber-950 hover:bg-brass-700 border border-brass-500 text-amber-100 text-xs font-bold">封入星芒日记册</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ARCHIVE EXPORT / IMPORT -->
+  <div id="backupModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="rusty-card max-w-md w-full p-5 rounded space-y-4 shadow-2xl relative">
+      <div class="flex justify-between items-center border-b border-stone-800 pb-2">
+        <h3 class="text-sm font-bold text-brass-300"><i class="fa-solid fa-box-archive text-brass-500 mr-2"></i> 湖底档案封存箱</h3>
+        <button onclick="closeModal('backupModal')" class="text-stone-400 hover:text-amber-200"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <p class="text-[11px] text-stone-400 leading-relaxed">
+        本机存储会被"清除浏览数据"、无痕窗口与换设备抹去。把档案导出成一份 .json 副本，才是真正带得走的记忆。
+      </p>
+
+      <div class="p-2.5 rounded bg-stone-950 border border-stone-800 text-[11px] text-stone-300 font-mono" id="backupStats">...</div>
+
+      <!-- Export -->
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-bold text-amber-200"><i class="fa-solid fa-file-arrow-down text-brass-400 mr-1.5"></i> 封存副本（导出）</h4>
+        <button onclick="exportArchive()" class="w-full py-2 rounded bg-amber-950 hover:bg-brass-700 border border-brass-500 text-amber-100 text-xs font-bold transition">
+          导出全部档案为 .json 文件
+        </button>
+      </div>
+
+      <!-- Import -->
+      <div class="space-y-1.5 border-t border-stone-800 pt-3">
+        <h4 class="text-xs font-bold text-amber-200"><i class="fa-solid fa-file-arrow-up text-brass-400 mr-1.5"></i> 唤回副本（导入）</h4>
+
+        <label class="block text-[11px] text-stone-400 mb-1">唤回方式</label>
+        <select id="importModeSelect" class="w-full bg-stone-950 border border-stone-800 rounded p-2 text-xs text-amber-100 focus:outline-none focus:border-brass-500">
+          <option value="merge">合并 — 保留现有内容，只补入本机没有的条目</option>
+          <option value="replace">覆盖 — 以文件内容完全替换现有全部档案</option>
+        </select>
+
+        <input type="file" id="importFileInput" accept="application/json,.json" class="hidden" onchange="handleImportFile(event)" />
+        <button onclick="document.getElementById('importFileInput').click()" class="w-full py-2 rounded bg-stone-900 hover:bg-stone-800 border border-stone-700 hover:border-brass-500 text-amber-200 text-xs font-bold transition">
+          选择档案文件并唤回
+        </button>
+        <p class="text-[10px] text-stone-500">覆盖模式会先要求你确认；建议在覆盖前先导出一份当前档案。</p>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: SECURE AI PROXY SETTINGS -->
   <div id="settingsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
     <div class="rusty-card max-w-sm w-full p-5 rounded space-y-3 shadow-2xl">
@@ -704,6 +808,7 @@
     const KEY_TASKS = 'rusty_lodge_tasks_v2';
     const KEY_GOALS = 'rusty_lodge_goals_v2';
     const KEY_DIARY = 'rusty_lodge_diary_v2';
+    const KEY_DRAFTS = 'rusty_lodge_drafts_v1';
     const KEY_PROXY_URL = 'nightwatch_lodge_proxy_url_v1';
     const LEGACY_KEY_API = 'rusty_lodge_gemini_key_v2';
 
@@ -720,6 +825,7 @@
       diaries: [],
       seanceHistory: [],
       lastGeneratedDiaryText: '',
+      lastGeneratedDiaryId: '',
       currentDialogueText: ''
     };
 
@@ -942,33 +1048,150 @@
     window.addEventListener('DOMContentLoaded', () => {
       loadState();
       renderAll();
+      restoreDrafts();
+      bindDraftAutosave();
+      markPersistState(true);
       updateProxyStatus();
       switchScene(state.activeScene);
     });
 
-    function loadState() {
-      const storedTasks = localStorage.getItem(KEY_TASKS);
-      const storedGoals = localStorage.getItem(KEY_GOALS);
-      const storedDiaries = localStorage.getItem(KEY_DIARY);
+    const DEFAULT_TASKS = [
+      { id: 't-1', title: '查验第13号住客的入住名册', desc: '确认划掉的字迹偏旁', completed: true, goalId: 'g-1' },
+      { id: 't-2', title: '倾听沉水古钟的第六下鸣响', desc: '记录缺失的第七下方向', completed: false, goalId: '' }
+    ];
+    const DEFAULT_GOALS = [
+      { id: 'g-1', title: '解开沉于湖底的第13号黄铜锁箱', target: 7, current: 3, days: 14, desc: '锁箱中放着关于名字被划掉的真相。' }
+    ];
+    const DEFAULT_DIARIES = [
+      { id: 'd-1', date: '1971-08-12', text: '今夜灰翅夫人从巨铜锅里舀出一勺滚烫的蜡。蜡液滴在黑色墨迹上，隐约浮现出“银狐”两个字。走廊尽头的影子没有增加。', imgUrl: '' }
+    ];
 
-      state.tasks = storedTasks ? JSON.parse(storedTasks) : [
-        { id: 't-1', title: '查验第13号住客的入住名册', desc: '确认划掉的字迹偏旁', completed: true, goalId: 'g-1' },
-        { id: 't-2', title: '倾听沉水古钟的第六下鸣响', desc: '记录缺失的第七下方向', completed: false, goalId: '' }
-      ];
+    /* A single corrupted key must never blank the whole lodge: parse each one
+       on its own, and keep a backup of anything unreadable instead of dropping it. */
+    function readStoredList(key, fallback) {
+      let raw = null;
+      try {
+        raw = localStorage.getItem(key);
+      } catch (e) {
+        console.warn(`无法读取 ${key}：浏览器禁用了本地存储。`, e);
+        return fallback;
+      }
+      if (!raw) return fallback;
 
-      state.goals = storedGoals ? JSON.parse(storedGoals) : [
-        { id: 'g-1', title: '解开沉于湖底的第13号黄铜锁箱', target: 7, current: 3, days: 14, desc: '锁箱中放着关于名字被划掉的真相。' }
-      ];
-
-      state.diaries = storedDiaries ? JSON.parse(storedDiaries) : [
-        { id: 'd-1', date: '1971-08-12', text: '今夜灰翅夫人从巨铜锅里舀出一勺滚烫的蜡。蜡液滴在黑色墨迹上，隐约浮现出“银狐”两个字。走廊尽头的影子没有增加。', imgUrl: '' }
-      ];
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+        throw new Error('存储结构不是数组');
+      } catch (e) {
+        try { localStorage.setItem(`${key}_corrupt_backup`, raw); } catch (_) {}
+        console.warn(`${key} 已损坏，原始内容备份在 ${key}_corrupt_backup。`, e);
+        return fallback;
+      }
     }
 
+    function loadState() {
+      state.tasks = readStoredList(KEY_TASKS, DEFAULT_TASKS);
+      state.goals = readStoredList(KEY_GOALS, DEFAULT_GOALS);
+      state.diaries = readStoredList(KEY_DIARY, DEFAULT_DIARIES);
+    }
+
+    /* Writes all three ledgers. Returns false (and says so out loud) when the
+       browser refuses the write, so an edit is never reported as saved when it isn't. */
     function saveState() {
-      localStorage.setItem(KEY_TASKS, JSON.stringify(state.tasks));
-      localStorage.setItem(KEY_GOALS, JSON.stringify(state.goals));
-      localStorage.setItem(KEY_DIARY, JSON.stringify(state.diaries));
+      try {
+        localStorage.setItem(KEY_TASKS, JSON.stringify(state.tasks));
+        localStorage.setItem(KEY_GOALS, JSON.stringify(state.goals));
+        localStorage.setItem(KEY_DIARY, JSON.stringify(state.diaries));
+        markPersistState(true);
+        return true;
+      } catch (err) {
+        markPersistState(false);
+        const quotaHit = err && (err.name === 'QuotaExceededError' || err.name === 'NS_ERROR_DOM_QUOTA_REACHED' || err.code === 22);
+        alert(quotaHit
+          ? '本地存储已满，这次修改没有写入！\n\n日记插画最占空间：请先擦除几张旧插画或旧日记页，再重新保存一次。'
+          : `本地存储写入失败：${err.message}\n\n本次修改只存在于当前页面，刷新会丢失。`);
+        return false;
+      }
+    }
+
+    /* ================= UNSAVED DRAFT AUTOSAVE =================
+       Text that has been typed but not yet committed (the diary editor, the
+       nightly reflection) is mirrored to localStorage as it is typed, so a
+       refresh mid-sentence does not throw the words back into the lake. */
+    let draftTimer = null;
+
+    function readDrafts() {
+      try {
+        const raw = localStorage.getItem(KEY_DRAFTS);
+        const parsed = raw ? JSON.parse(raw) : {};
+        return (parsed && typeof parsed === 'object') ? parsed : {};
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function writeDrafts(drafts) {
+      try {
+        localStorage.setItem(KEY_DRAFTS, JSON.stringify(drafts));
+      } catch (e) {
+        console.warn('草稿暂存失败。', e);
+      }
+    }
+
+    function patchDraft(patch) {
+      writeDrafts({ ...readDrafts(), ...patch });
+    }
+
+    function scheduleDraftSave() {
+      clearTimeout(draftTimer);
+      draftTimer = setTimeout(captureDrafts, 400);
+    }
+
+    function captureDrafts() {
+      const reflection = document.getElementById('reflectionInput').value;
+      const diaryModalOpen = !document.getElementById('diaryModal').classList.contains('hidden');
+
+      const patch = { reflection };
+      if (diaryModalOpen) {
+        patch.diary = {
+          id: document.getElementById('editDiaryId').value,
+          date: document.getElementById('diaryDateInput').value,
+          text: document.getElementById('diaryTextInput').value,
+          imgUrl: diaryModalImgUrl
+        };
+      }
+      patchDraft(patch);
+    }
+
+    function clearDiaryDraft() {
+      const drafts = readDrafts();
+      delete drafts.diary;
+      writeDrafts(drafts);
+    }
+
+    function restoreDrafts() {
+      const drafts = readDrafts();
+      if (typeof drafts.reflection === 'string') {
+        document.getElementById('reflectionInput').value = drafts.reflection;
+      }
+    }
+
+    function bindDraftAutosave() {
+      ['reflectionInput', 'diaryTextInput', 'diaryDateInput'].forEach(id => {
+        document.getElementById(id).addEventListener('input', scheduleDraftSave);
+      });
+      // A refresh or tab close can outrun the debounce timer.
+      window.addEventListener('beforeunload', captureDrafts);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') captureDrafts();
+      });
+    }
+
+    function markPersistState(ok) {
+      const dot = document.getElementById('persistStatusDot');
+      if (!dot) return;
+      dot.className = ok ? 'w-2 h-2 rounded-full bg-emerald-500' : 'w-2 h-2 rounded-full bg-rust-600 animate-pulse';
+      dot.title = ok ? '本页记忆已封存到本机，刷新不会消失' : '写入失败：本次修改尚未封存！';
     }
 
     function switchScene(sceneId) {
@@ -1414,6 +1637,7 @@
         };
 
         state.diaries.unshift(newEntry);
+        state.lastGeneratedDiaryId = newEntry.id;
 
         state.goals.forEach(g => {
           if (g.current < g.target) g.current += 1;
@@ -1425,7 +1649,9 @@
         dateOutput.innerText = newEntry.date;
         textOutput.innerText = story;
 
-        document.getElementById('btnGenerateDiaryImg').classList.add('hidden');
+        // A fresh entry has no illustration yet: hide the stale one, offer to etch a new one.
+        document.getElementById('outputDiaryImgContainer').classList.add('hidden');
+        document.getElementById('btnGenerateDiaryImg').classList.remove('hidden');
 
       } catch (err) {
         clearInterval(bubbleInterval);
@@ -1453,8 +1679,9 @@
         if (imgUrl) {
           imgEl.src = imgUrl;
           imgContainer.classList.remove('hidden');
-          if (state.diaries.length > 0) {
-            state.diaries[0].imgUrl = imgUrl;
+          const entry = state.diaries.find(d => d.id === state.lastGeneratedDiaryId);
+          if (entry) {
+            entry.imgUrl = imgUrl;
             saveState();
             renderDiaryArchive();
           }
@@ -1673,13 +1900,18 @@
       }
 
       container.innerHTML = state.diaries.map(d => `
-        <div class="p-3.5 rounded border border-stone-800 bg-stone-950 space-y-2 relative">
+        <div class="p-3.5 rounded border border-stone-800 bg-stone-950 space-y-2 relative group">
           <div class="flex items-center justify-between border-b border-stone-800 pb-1 text-xs">
-            <span class="font-cinzel text-brass-400 font-bold"><i class="fa-solid fa-feather mr-1"></i> ${d.date}</span>
-            <button onclick="deleteDiary('${d.id}')" class="text-stone-500 hover:text-rust-400 text-xs" title="完全擦除"><i class="fa-solid fa-trash"></i></button>
+            <span class="font-cinzel text-brass-400 font-bold"><i class="fa-solid fa-feather mr-1"></i> ${escapeHtml(d.date)}</span>
+            <div class="flex items-center gap-1 opacity-75 group-hover:opacity-100">
+              <button onclick="speakDiary('${d.id}')" class="p-1 text-stone-500 hover:text-brass-300" title="灰翅夫人低声念诵此页"><i class="fa-solid fa-volume-high"></i></button>
+              <button id="diaryImgBtn-${d.id}" onclick="generateDiaryImageFor('${d.id}')" class="p-1 text-stone-500 hover:text-amber-300" title="用 Imagen 凝结此页图景"><i class="fa-solid fa-palette"></i></button>
+              <button onclick="openEditDiaryModal('${d.id}')" class="p-1 text-stone-500 hover:text-brass-300" title="修改此页记忆"><i class="fa-solid fa-pen"></i></button>
+              <button onclick="deleteDiary('${d.id}')" class="p-1 text-stone-500 hover:text-rust-400" title="完全擦除"><i class="fa-solid fa-trash"></i></button>
+            </div>
           </div>
           <p class="text-xs text-amber-100/90 leading-relaxed font-serif">${escapeHtml(d.text)}</p>
-          ${d.imgUrl ? `<img src="${d.imgUrl}" class="w-full max-h-48 object-cover rounded border border-stone-800" />` : ''}
+          ${d.imgUrl ? `<img src="${escapeHtml(d.imgUrl)}" alt="Memory Etching" class="w-full max-h-48 object-cover rounded border border-stone-800" />` : ''}
         </div>
       `).join('');
     }
@@ -1801,12 +2033,339 @@
       }
     }
 
+    /* Diary page CRUD — the Starlit Leather Journal (Scene 6) */
+    let diaryModalImgUrl = '';
+
+    function openAddDiaryModal() {
+      document.getElementById('diaryModalTitle').innerHTML = `<i class="fa-solid fa-book-bookmark text-brass-500 mr-2"></i> 烙下星芒日记页`;
+      document.getElementById('editDiaryId').value = "";
+      document.getElementById('diaryDateInput').value = new Date().toISOString().split('T')[0];
+      document.getElementById('diaryTextInput').value = "";
+      setDiaryModalImage('');
+      applyDiaryDraft('');
+      openModal('diaryModal');
+    }
+
+    function openEditDiaryModal(id) {
+      const diary = state.diaries.find(d => d.id === id);
+      if (!diary) return;
+      document.getElementById('diaryModalTitle').innerHTML = `<i class="fa-solid fa-pen-fancy text-brass-500 mr-2"></i> 修改星芒日记页`;
+      document.getElementById('editDiaryId').value = diary.id;
+      document.getElementById('diaryDateInput').value = diary.date || new Date().toISOString().split('T')[0];
+      document.getElementById('diaryTextInput').value = diary.text || "";
+      setDiaryModalImage(diary.imgUrl || '');
+      applyDiaryDraft(diary.id);
+      openModal('diaryModal');
+    }
+
+    /* Put back whatever was typed into this same page before the last refresh. */
+    function applyDiaryDraft(entryId) {
+      const hint = document.getElementById('diaryDraftHint');
+      const draft = readDrafts().diary;
+      const usable = draft && draft.id === entryId && (draft.text || '').trim();
+
+      if (!usable) {
+        hint.classList.add('hidden');
+        return;
+      }
+
+      document.getElementById('diaryTextInput').value = draft.text;
+      if (draft.date) document.getElementById('diaryDateInput').value = draft.date;
+      if (draft.imgUrl) setDiaryModalImage(draft.imgUrl);
+      hint.classList.remove('hidden');
+    }
+
+    function cancelDiaryModal() {
+      clearDiaryDraft();
+      closeModal('diaryModal');
+    }
+
+    function setDiaryModalImage(url) {
+      diaryModalImgUrl = url || '';
+      const img = document.getElementById('diaryModalImg');
+      const clearBtn = document.getElementById('btnClearDiaryImg');
+      if (diaryModalImgUrl) {
+        img.src = diaryModalImgUrl;
+        img.classList.remove('hidden');
+        clearBtn.classList.remove('hidden');
+      } else {
+        img.removeAttribute('src');
+        img.classList.add('hidden');
+        clearBtn.classList.add('hidden');
+      }
+      scheduleDraftSave();
+    }
+
+    function clearDiaryModalImage() { setDiaryModalImage(''); }
+
+    function saveDiary() {
+      const id = document.getElementById('editDiaryId').value;
+      const date = document.getElementById('diaryDateInput').value || new Date().toISOString().split('T')[0];
+      const text = document.getElementById('diaryTextInput').value.trim();
+
+      if (!text) return alert("请先写下日记正文！");
+
+      if (id) {
+        const d = state.diaries.find(x => x.id === id);
+        if (d) { d.date = date; d.text = text; d.imgUrl = diaryModalImgUrl; }
+      } else {
+        state.diaries.unshift({ id: 'd-' + Date.now(), date, text, imgUrl: diaryModalImgUrl });
+      }
+
+      state.diaries.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+      // Keep the draft if the write was rejected — it is the only surviving copy.
+      if (!saveState()) return;
+
+      clearDiaryDraft();
+      renderAll();
+      closeModal('diaryModal');
+      playSound('key');
+    }
+
+    /* Madame Greywing re-renders a diary draft in Rusty Lake prose */
+    async function aiRewriteDiaryText() {
+      const input = document.getElementById('diaryTextInput');
+      const btn = document.getElementById('btnAiRewriteDiary');
+      const draft = input.value.trim();
+      if (!draft) return alert("请先写下日记草稿，灰翅夫人才能重新熬炼。");
+
+      const original = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> 正在重新熬炼...`;
+
+      try {
+        const sys = "你扮演《噤湖·守夜旅舍》的灰翅夫人。把银狐小姐的日记草稿重写成锈湖(Rusty Lake)隐喻风格的日记文章，保留原有事件与情绪，100-160字。只返回日记正文，不要标题或引号。";
+        const result = await callGeminiAPI(sys, `日记草稿：${draft}`);
+        input.value = result.trim().replace(/^["'“]/, '').replace(/["'”]$/, '');
+      } catch (e) {
+        alert(`Gemini 重写失败：${e.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = original;
+      }
+    }
+
+    /* Imagen illustration inside the diary editor */
+    async function generateDiaryModalImage() {
+      const btn = document.getElementById('btnDiaryModalImg');
+      const text = document.getElementById('diaryTextInput').value.trim();
+      if (!text) return alert("请先写下日记正文，才能凝结图景。");
+
+      const original = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Imagen 正在凝结图像...`;
+
+      try {
+        const imgUrl = await generateImagenImage(text);
+        if (imgUrl) setDiaryModalImage(imgUrl);
+      } catch (e) {
+        alert(`Imagen 图片生成失败：${e.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = original;
+      }
+    }
+
+    /* Imagen illustration straight from an archived diary card */
+    async function generateDiaryImageFor(id) {
+      const diary = state.diaries.find(d => d.id === id);
+      if (!diary) return;
+
+      const btn = document.getElementById(`diaryImgBtn-${id}`);
+      const original = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i>`;
+      }
+
+      try {
+        const imgUrl = await generateImagenImage(diary.text);
+        if (imgUrl) {
+          diary.imgUrl = imgUrl;
+          saveState();
+          renderDiaryArchive();
+        }
+      } catch (e) {
+        alert(`Imagen 图片生成失败：${e.message}`);
+        if (btn) { btn.disabled = false; btn.innerHTML = original; }
+      }
+    }
+
+    /* Gemini TTS narration of an archived diary page */
+    function speakDiary(id) {
+      const diary = state.diaries.find(d => d.id === id);
+      if (!diary || !diary.text) return;
+      generateGeminiTTS(diary.text, 'Kore');
+    }
+
     function deleteDiary(id) {
       if (confirm("擦除日记将彻底散去记忆。确定擦除吗？")) {
         state.diaries = state.diaries.filter(d => d.id !== id);
         saveState();
         renderAll();
       }
+    }
+
+    /* ================= ARCHIVE EXPORT / IMPORT =================
+       localStorage survives a refresh but not a cleared cache, an incognito
+       window or a new machine. A .json copy is the only portable record. */
+    const ARCHIVE_SIGNATURE = 'nightwatch-lodge-archive';
+    const ARCHIVE_VERSION = 1;
+
+    function openBackupModal() {
+      document.getElementById('backupStats').innerText =
+        `打卡纸条 ${state.tasks.length} 张　誓约 ${state.goals.length} 条　日记 ${state.diaries.length} 页`;
+      document.getElementById('importFileInput').value = '';
+      openModal('backupModal');
+    }
+
+    function exportArchive() {
+      const archive = {
+        signature: ARCHIVE_SIGNATURE,
+        version: ARCHIVE_VERSION,
+        exportedAt: new Date().toISOString(),
+        tasks: state.tasks,
+        goals: state.goals,
+        diaries: state.diaries
+      };
+
+      const blob = new Blob([JSON.stringify(archive, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `噤湖守夜旅舍-档案-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      playSound('key');
+      setDialogueText('档案副本已封入黄铜匣带离旅舍。即便湖水漫过本机，这份记忆仍在。');
+    }
+
+    function newId(prefix) {
+      return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    }
+
+    /* Imported records are foreign input: keep only known fields, and never let
+       an arbitrary URL reach an <img src> — inline image data only. */
+    function sanitizeTask(raw) {
+      if (!raw || typeof raw !== 'object') return null;
+      const title = String(raw.title || '').trim();
+      if (!title) return null;
+      return {
+        id: String(raw.id || newId('t')),
+        title,
+        desc: String(raw.desc || ''),
+        completed: Boolean(raw.completed),
+        goalId: String(raw.goalId || '')
+      };
+    }
+
+    function sanitizeGoal(raw) {
+      if (!raw || typeof raw !== 'object') return null;
+      const title = String(raw.title || '').trim();
+      if (!title) return null;
+      const target = Math.max(1, Math.round(Number(raw.target)) || 7);
+      return {
+        id: String(raw.id || newId('g')),
+        title,
+        target,
+        current: Math.min(target, Math.max(0, Math.round(Number(raw.current)) || 0)),
+        days: Math.max(1, Math.round(Number(raw.days)) || 14),
+        desc: String(raw.desc || '')
+      };
+    }
+
+    function sanitizeDiary(raw) {
+      if (!raw || typeof raw !== 'object') return null;
+      const text = String(raw.text || '').trim();
+      if (!text) return null;
+      const imgUrl = String(raw.imgUrl || '');
+      const date = String(raw.date || '');
+      return {
+        id: String(raw.id || newId('d')),
+        date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : new Date().toISOString().split('T')[0],
+        text,
+        imgUrl: imgUrl.startsWith('data:image/') ? imgUrl : ''
+      };
+    }
+
+    function sanitizeList(list, sanitizer) {
+      if (!Array.isArray(list)) return [];
+      return list.map(sanitizer).filter(Boolean);
+    }
+
+    function handleImportFile(event) {
+      const file = event.target.files && event.target.files[0];
+      event.target.value = '';
+      if (!file) return;
+
+      const mode = document.getElementById('importModeSelect').value;
+      const reader = new FileReader();
+
+      reader.onerror = () => alert('档案文件读取失败。');
+      reader.onload = () => {
+        let archive;
+        try {
+          archive = JSON.parse(reader.result);
+        } catch (e) {
+          return alert('这不是一份可解析的 .json 档案文件。');
+        }
+
+        if (!archive || typeof archive !== 'object' || archive.signature !== ARCHIVE_SIGNATURE) {
+          return alert('文件签名不符，这不是守夜旅舍导出的档案副本。');
+        }
+
+        const tasks = sanitizeList(archive.tasks, sanitizeTask);
+        const goals = sanitizeList(archive.goals, sanitizeGoal);
+        const diaries = sanitizeList(archive.diaries, sanitizeDiary);
+
+        if (!tasks.length && !goals.length && !diaries.length) {
+          return alert('这份档案里没有可唤回的有效条目。');
+        }
+
+        applyImportedArchive({ tasks, goals, diaries }, mode);
+      };
+
+      reader.readAsText(file);
+    }
+
+    function applyImportedArchive(incoming, mode) {
+      if (mode === 'replace') {
+        const confirmed = confirm(
+          `覆盖将抹去本机现有的 ${state.tasks.length} 张纸条、${state.goals.length} 条誓约、${state.diaries.length} 页日记，` +
+          `替换为档案中的 ${incoming.tasks.length} / ${incoming.goals.length} / ${incoming.diaries.length}。\n\n确定覆盖吗？`
+        );
+        if (!confirmed) return;
+
+        state.tasks = incoming.tasks;
+        state.goals = incoming.goals;
+        state.diaries = incoming.diaries;
+      } else {
+        // Existing records win on id collision: a merge must never overwrite
+        // something the user edited on this machine.
+        const mergeById = (current, added) => {
+          const seen = new Set(current.map(item => item.id));
+          return current.concat(added.filter(item => !seen.has(item.id)));
+        };
+
+        state.tasks = mergeById(state.tasks, incoming.tasks);
+        state.goals = mergeById(state.goals, incoming.goals);
+        state.diaries = mergeById(state.diaries, incoming.diaries);
+      }
+
+      state.diaries.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+      if (!saveState()) return;
+
+      renderAll();
+      closeModal('backupModal');
+      playSound('key');
+      setDialogueText(
+        `档案已唤回：现存 ${state.tasks.length} 张纸条、${state.goals.length} 条誓约、${state.diaries.length} 页日记。`
+      );
     }
 
     /* Modal Helpers & secure proxy config */
