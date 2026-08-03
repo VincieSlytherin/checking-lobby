@@ -386,13 +386,32 @@
               </h2>
               <p class="text-[11px] text-stone-400 mt-0.5">写下今日要执行的任务凭证，递给屏息先生。他会将纸条咽入腹中。</p>
             </div>
-            <button onclick="openAddTaskModal()" class="px-3 py-1.5 rounded bg-rust-800 hover:bg-rust-600 border border-rust-400 text-amber-100 text-xs font-bold transition flex items-center gap-1.5 shadow">
-              <i class="fa-solid fa-plus"></i> 新增打卡纸条
-            </button>
+            <div class="flex items-center gap-2">
+              <label class="text-[10px] text-stone-500 flex items-center gap-1" title="每日到点，桌面上的纸条无论完成与否都会褪色收起">
+                <i class="fa-solid fa-hourglass-half text-brass-500"></i> 换页
+                <select id="rolloverHourSelect" onchange="setRolloverHour(this.value)" class="bg-stone-950 border border-stone-800 rounded px-1 py-0.5 text-[10px] text-amber-200 focus:outline-none focus:border-brass-500"></select>
+              </label>
+              <button onclick="openAddTaskModal()" class="px-3 py-1.5 rounded bg-rust-800 hover:bg-rust-600 border border-rust-400 text-amber-100 text-xs font-bold transition flex items-center gap-1.5 shadow">
+                <i class="fa-solid fa-plus"></i> 新增打卡纸条
+              </button>
+            </div>
           </div>
 
           <!-- Task Card List -->
           <div id="taskListContainer" class="space-y-2"></div>
+
+          <!-- Faded notes swept off the desk at the daily turn -->
+          <div id="fadedTaskSection" class="hidden border-t border-stone-800 pt-3 space-y-2">
+            <div class="flex items-center justify-between">
+              <button onclick="toggleFadedTasks()" class="text-[11px] text-stone-500 hover:text-stone-300 flex items-center gap-1.5 transition">
+                <i id="fadedTaskChevron" class="fa-solid fa-chevron-right text-[10px]"></i>
+                <i class="fa-solid fa-box-archive text-stone-600"></i>
+                昨日褪色的纸条 (<span id="fadedTaskCount">0</span>)
+              </button>
+              <button onclick="clearFadedTasks()" class="text-[10px] text-stone-600 hover:text-rust-400 transition">全部吞下</button>
+            </div>
+            <div id="fadedTaskList" class="hidden space-y-1.5"></div>
+          </div>
         </div>
       </div>
 
@@ -809,17 +828,33 @@
     const KEY_GOALS = 'rusty_lodge_goals_v2';
     const KEY_DIARY = 'rusty_lodge_diary_v2';
     const KEY_DRAFTS = 'rusty_lodge_drafts_v1';
+    const KEY_ROLLOVER_HOUR = 'rusty_lodge_rollover_hour_v1';
     const KEY_PROXY_URL = 'nightwatch_lodge_proxy_url_v1';
     const LEGACY_KEY_API = 'rusty_lodge_gemini_key_v2';
 
     // Security migration: permanently remove any Gemini key saved by older builds.
     localStorage.removeItem(LEGACY_KEY_API);
 
+    const DEFAULT_ROLLOVER_HOUR = 6;
+
+    // Hour 0 is a legal choice, so an empty/absent value must be told apart from
+    // a stored zero rather than folded together by a falsy check.
+    function readRolloverHour() {
+      let raw = null;
+      try { raw = localStorage.getItem(KEY_ROLLOVER_HOUR); } catch (e) {}
+      if (raw === null || raw === '') return DEFAULT_ROLLOVER_HOUR;
+
+      const hour = Number(raw);
+      if (!Number.isInteger(hour) || hour < 0 || hour > 23) return DEFAULT_ROLLOVER_HOUR;
+      return hour;
+    }
+
     let state = {
       activeScene: 'checkin',
       soundEnabled: true,
       proxyUrl: localStorage.getItem(KEY_PROXY_URL) || 'https://nightwatch-lodge-ai.vincieslytherin.workers.dev',
       proxyToken: '',
+      rolloverHour: readRolloverHour(),
       tasks: [],
       goals: [],
       diaries: [],
@@ -1086,7 +1121,9 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       loadState();
+      applyDailyRollover();
       renderAll();
+      startRolloverWatch();
       restoreDrafts();
       bindDraftAutosave();
       markPersistState(true);
@@ -1231,6 +1268,79 @@
       if (!dot) return;
       dot.className = ok ? 'w-2 h-2 rounded-full bg-emerald-500' : 'w-2 h-2 rounded-full bg-rust-600 animate-pulse';
       dot.title = ok ? '本页记忆已封存到本机，刷新不会消失' : '写入失败：本次修改尚未封存！';
+    }
+
+    /* ================= THE LODGE DAY (08:00 ROLLOVER) =================
+       A lodge day runs from the rollover hour to the same hour next morning, so
+       a note written at 01:00 still belongs to the night before. At the turn,
+       every note left on the desk is taken down — finished or not. */
+    function lodgeDayOf(date) {
+      const shifted = new Date(date.getTime() - state.rolloverHour * 3600 * 1000);
+      // Local calendar date, not UTC: toISOString() would shift by the timezone.
+      const y = shifted.getFullYear();
+      const m = String(shifted.getMonth() + 1).padStart(2, '0');
+      const d = String(shifted.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function currentLodgeDay() {
+      return lodgeDayOf(new Date());
+    }
+
+    function activeTasks() {
+      return state.tasks.filter(t => !t.archived);
+    }
+
+    function archivedTasks() {
+      return state.tasks.filter(t => t.archived);
+    }
+
+    /* Takes down anything left from an earlier lodge day. Returns how many. */
+    function applyDailyRollover() {
+      const today = currentLodgeDay();
+      let swept = 0;
+
+      state.tasks.forEach(t => {
+        if (t.archived) return;
+        if (!t.day) t.day = today;          // pre-rollover notes join today
+        if (t.day !== today) {
+          t.archived = true;
+          swept++;
+        }
+      });
+
+      return swept;
+    }
+
+    function runRolloverCheck({ announce = false } = {}) {
+      const swept = applyDailyRollover();
+      if (!swept) return;
+
+      saveState();
+      renderAll();
+
+      if (announce && state.activeScene === 'checkin') {
+        setDialogueText(
+          `屏息先生把昨日的 ${swept} 张纸条从桌面收走，压进抽屉深处。纸面褪成灰白，字迹还在，但已不属于今天。`
+        );
+      }
+    }
+
+    function startRolloverWatch() {
+      // The page often stays open across the 08:00 turn, so poll for it rather
+      // than only checking at load.
+      setInterval(() => runRolloverCheck({ announce: true }), 60000);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') runRolloverCheck({ announce: true });
+      });
+    }
+
+    function setRolloverHour(hour) {
+      state.rolloverHour = Math.min(23, Math.max(0, Number(hour) || 0));
+      try { localStorage.setItem(KEY_ROLLOVER_HOUR, String(state.rolloverHour)); } catch (e) {}
+      runRolloverCheck();
+      renderAll();
+      setDialogueText(`登记桌的换页时刻已改为每日 ${String(state.rolloverHour).padStart(2, '0')}:00。`);
     }
 
     function switchScene(sceneId) {
@@ -1558,7 +1668,7 @@
         userPrompt = "银狐小姐问起锁箱的第13把黄铜钥匙。";
         voice = "Puck";
       } else if (npcId === 'corridor') {
-        const incomplete = state.tasks.filter(t => !t.completed).map(t => t.title).join(', ');
+        const incomplete = activeTasks().filter(t => !t.completed).map(t => t.title).join(', ');
         sysPrompt = "你扮演《噤湖·守夜旅舍》走廊尽头没浸过蜡的空芯 (The Hollow Wicks)。你是未竟之事的影子。语气虚无、令人毛骨悚然。1-2短句。";
         userPrompt = `银狐小姐走近影子。当前未完成的事有：${incomplete || '无'}。请发出低语。`;
         voice = "Fenrir";
@@ -1614,8 +1724,8 @@
       reportBox.classList.remove('hidden');
       textEl.innerText = "灰翅夫人正在翻看铜锅与账目，考炼你的灵魂纯度...";
 
-      const completed = state.tasks.filter(t => t.completed).map(t => t.title);
-      const incomplete = state.tasks.filter(t => !t.completed).map(t => t.title);
+      const completed = activeTasks().filter(t => t.completed).map(t => t.title);
+      const incomplete = activeTasks().filter(t => !t.completed).map(t => t.title);
 
       const jsonSchema = {
         type: "OBJECT",
@@ -1651,8 +1761,8 @@
       const dateOutput = document.getElementById('outputDiaryDate');
       const reflection = document.getElementById('reflectionInput').value.trim();
 
-      const completed = state.tasks.filter(t => t.completed).map(t => t.title);
-      const incomplete = state.tasks.filter(t => !t.completed).map(t => t.title);
+      const completed = activeTasks().filter(t => t.completed).map(t => t.title);
+      const incomplete = activeTasks().filter(t => !t.completed).map(t => t.title);
 
       btn.disabled = true;
       btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> 灰翅夫人正在熬煮记忆...`;
@@ -1817,7 +1927,16 @@
     }
 
 
+    function renderRolloverSelect() {
+      const select = document.getElementById('rolloverHourSelect');
+      if (!select) return;
+      select.innerHTML = Array.from({ length: 24 }, (_, h) =>
+        `<option value="${h}" ${h === state.rolloverHour ? 'selected' : ''}>${String(h).padStart(2, '0')}:00</option>`
+      ).join('');
+    }
+
     function renderAll() {
+      renderRolloverSelect();
       renderTasks();
       renderGoals();
       renderCrucibleChecklist();
@@ -1827,21 +1946,26 @@
     }
 
     function updateBadges() {
-      document.getElementById('badgeTaskCount').innerText = state.tasks.length;
+      const active = activeTasks();
+      document.getElementById('badgeTaskCount').innerText = active.length;
       document.getElementById('badgeGoalCount').innerText = state.goals.length;
-      const incomplete = state.tasks.filter(t => !t.completed).length;
+      const incomplete = active.filter(t => !t.completed).length;
       document.getElementById('badgeHollowCount').innerText = incomplete;
       document.getElementById('badgeDiaryCount').innerText = state.diaries.length;
     }
 
     function renderTasks() {
       const container = document.getElementById('taskListContainer');
-      if (state.tasks.length === 0) {
-        container.innerHTML = `<div class="text-center py-6 text-stone-500 text-xs italic">空无一物。点击“新增打卡纸条”写入凭证。</div>`;
+      const tasks = activeTasks();
+
+      renderFadedTasks();
+
+      if (tasks.length === 0) {
+        container.innerHTML = `<div class="text-center py-6 text-stone-500 text-xs italic">今日桌面空无一物。点击“新增打卡纸条”写入凭证。</div>`;
         return;
       }
 
-      container.innerHTML = state.tasks.map(t => {
+      container.innerHTML = tasks.map(t => {
         const linkedGoal = state.goals.find(g => g.id === t.goalId);
         return `
           <div class="p-3 rounded border ${t.completed ? 'border-stone-800 bg-stone-950/40 opacity-75' : 'border-stone-800 bg-stone-900'} flex items-center justify-between gap-2 group">
@@ -1860,6 +1984,66 @@
           </div>
         `;
       }).join('');
+    }
+
+    /* Yesterday's notes: still readable, but visibly drained of colour. */
+    function renderFadedTasks() {
+      const section = document.getElementById('fadedTaskSection');
+      const container = document.getElementById('fadedTaskList');
+      const countEl = document.getElementById('fadedTaskCount');
+      const faded = archivedTasks();
+
+      if (faded.length === 0) {
+        section.classList.add('hidden');
+        container.innerHTML = '';
+        return;
+      }
+
+      section.classList.remove('hidden');
+      countEl.innerText = faded.length;
+
+      container.innerHTML = faded.slice().reverse().map(t => `
+        <div class="p-2 rounded border border-stone-800/70 bg-stone-950/60 flex items-center justify-between gap-2 opacity-50 hover:opacity-90 transition group">
+          <div class="min-w-0 flex-1">
+            <span class="text-[11px] ${t.completed ? 'line-through text-stone-600' : 'text-stone-400'} truncate block">
+              ${t.completed ? '<i class="fa-solid fa-droplet text-amber-700/70 mr-1"></i>' : '<i class="fa-solid fa-ghost text-purple-800/70 mr-1"></i>'}${escapeHtml(t.title)}
+            </span>
+            <span class="text-[10px] text-stone-600 font-mono">${escapeHtml(t.day || '')}</span>
+          </div>
+          <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
+            <button onclick="restoreTask('${t.id}')" class="p-1 text-stone-500 hover:text-brass-300 text-[11px]" title="取回到今天的桌面"><i class="fa-solid fa-rotate-left"></i></button>
+            <button onclick="swallowDeleteTask('${t.id}')" class="p-1 text-stone-500 hover:text-rust-400 text-[11px]" title="让屏息先生吞掉(删除)"><i class="fa-solid fa-drumstick-bite"></i></button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function toggleFadedTasks() {
+      const list = document.getElementById('fadedTaskList');
+      const chevron = document.getElementById('fadedTaskChevron');
+      const collapsed = list.classList.toggle('hidden');
+      chevron.className = collapsed ? 'fa-solid fa-chevron-right text-[10px]' : 'fa-solid fa-chevron-down text-[10px]';
+    }
+
+    function restoreTask(id) {
+      const t = state.tasks.find(x => x.id === id);
+      if (!t) return;
+      t.archived = false;
+      t.day = currentLodgeDay();
+      saveState();
+      renderAll();
+      playSound('key');
+    }
+
+    function clearFadedTasks() {
+      const count = archivedTasks().length;
+      if (!count) return;
+      if (!confirm(`让屏息先生吞下这 ${count} 张褪色的旧纸条吗？此后它们不再可取回。`)) return;
+
+      state.tasks = activeTasks();
+      saveState();
+      renderAll();
+      playSound('swallow');
     }
 
     function renderGoals() {
@@ -1899,12 +2083,13 @@
 
     function renderCrucibleChecklist() {
       const container = document.getElementById('crucibleChecklist');
-      if (state.tasks.length === 0) {
+      const tasks = activeTasks();
+      if (tasks.length === 0) {
         container.innerHTML = `<p class="text-xs text-stone-500">今日无打卡凭证。</p>`;
         return;
       }
 
-      container.innerHTML = state.tasks.map(t => `
+      container.innerHTML = tasks.map(t => `
         <label class="flex items-center space-x-2 text-xs text-amber-200 p-2 rounded bg-stone-900 border border-stone-800 cursor-pointer">
           <input type="checkbox" ${t.completed ? 'checked' : ''} onchange="toggleTask('${t.id}')" class="accent-rust-600" />
           <span class="${t.completed ? 'line-through text-stone-500' : ''}">${escapeHtml(t.title)}</span>
@@ -1914,7 +2099,7 @@
 
     function renderHollowWicks() {
       const container = document.getElementById('hollowWicksList');
-      const incomplete = state.tasks.filter(t => !t.completed);
+      const incomplete = activeTasks().filter(t => !t.completed);
 
       if (incomplete.length === 0) {
         container.innerHTML = `<div class="col-span-full text-center py-6 text-stone-500 text-xs">走廊尽头一片清明，没有未浸蜡的空芯身影。</div>`;
@@ -1994,7 +2179,7 @@
         const t = state.tasks.find(x => x.id === id);
         if (t) { t.title = title; t.desc = desc; t.goalId = goalId; }
       } else {
-        state.tasks.push({ id: 't-' + Date.now(), title, desc, completed: false, goalId });
+        state.tasks.push({ id: 't-' + Date.now(), title, desc, completed: false, goalId, day: currentLodgeDay(), archived: false });
       }
 
       saveState();
@@ -2308,12 +2493,15 @@
       if (!raw || typeof raw !== 'object') return null;
       const title = String(raw.title || '').trim();
       if (!title) return null;
+      const day = String(raw.day || '');
       return {
         id: String(raw.id || newId('t')),
         title,
         desc: String(raw.desc || ''),
         completed: Boolean(raw.completed),
-        goalId: String(raw.goalId || '')
+        goalId: String(raw.goalId || ''),
+        day: /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : currentLodgeDay(),
+        archived: Boolean(raw.archived)
       };
     }
 
