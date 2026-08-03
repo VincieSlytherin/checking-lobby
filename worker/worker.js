@@ -58,8 +58,16 @@ async function googleRequest(model, operation, payload, env) {
   });
 
   if (!response.ok) {
-    // Do not forward Google's response body: it may contain implementation details.
-    console.error('Gemini upstream request failed', { model, operation, status: response.status });
+    // Never forward Google's body to the browser: it may carry implementation
+    // details. Logging it to the Worker's own console is safe, and a 400 says
+    // exactly which field was rejected — visible via `wrangler tail`.
+    const detail = await response.text().catch(() => '');
+    console.error('Gemini upstream request failed', {
+      model,
+      operation,
+      status: response.status,
+      detail: detail.slice(0, 600)
+    });
     throw new UpstreamError(response.status);
   }
   return response.json();
@@ -132,7 +140,9 @@ async function handleImage(input, env) {
     }],
     generationConfig: {
       responseModalities: ['TEXT', 'IMAGE'],
-      responseFormat: { image: { aspectRatio: '16:9', imageSize: '1K' } }
+      // v1beta GenerationConfig takes imageConfig; responseFormat belongs to the
+      // newer Interactions API and is rejected here as an unknown field.
+      imageConfig: { aspectRatio: '16:9' }
     }
   };
 
