@@ -9,15 +9,15 @@ ALLOWED_ORIGINS = "https://vincieslytherin.github.io"
 
 # Image generation is billed per image (no free tier). Set to "true" only after
 # the Gemini project has billing enabled and a spend cap configured.
-ENABLE_IMAGE_GENERATION = "false"
+ENABLE_IMAGE_GENERATION = "true"
 IMAGE_DAILY_CAP = "20"
 
-# Optional daily ceiling for image generation. Create the namespace and paste
-# its id below to enforce IMAGE_DAILY_CAP; without this binding there is no cap.
+# Enforces IMAGE_DAILY_CAP. Without this binding the cap is silently skipped,
+# leaving LODGE_ACCESS_TOKEN as the only thing guarding a billed API key.
 #   npx wrangler kv namespace create IMAGE_QUOTA
-# [[kv_namespaces]]
-# binding = "IMAGE_QUOTA"
-# id = "<paste-the-id-printed-by-the-command-above>"
+[[kv_namespaces]]
+binding = "IMAGE_QUOTA"
+id = "0c921a7282ed4e12917baa131e4fb045"
 
 # Set secrets through the CLI; never write them into this file:
 #   npx wrangler secret put GEMINI_API_KEY

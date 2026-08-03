@@ -136,7 +136,19 @@ async function handleImage(input, env) {
     }
   };
 
-  const result = await googleRequest(IMAGE_MODEL, 'generateContent', payload, env);
+  let result;
+  try {
+    result = await googleRequest(IMAGE_MODEL, 'generateContent', payload, env);
+  } catch (error) {
+    // 403/429 on an image model is almost always a billing problem rather than
+    // a transient one: these models have no free tier. Say so instead of
+    // letting it surface as a generic "service unavailable".
+    if (error instanceof UpstreamError && (error.upstreamStatus === 403 || error.upstreamStatus === 429)) {
+      throw new TypeError('图片生成被 Gemini 拒绝：图片模型没有免费层，请确认该项目已启用结算并检查配额');
+    }
+    throw error;
+  }
+
   const parts = result?.candidates?.[0]?.content?.parts || [];
   const image = parts.find(part => part?.inlineData?.data);
   if (!image) throw new Error('Empty image response');
