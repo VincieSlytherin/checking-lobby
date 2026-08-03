@@ -994,6 +994,41 @@
       }
     }
 
+    /* A 1K generated image is 1-2MB as a data URI while localStorage holds only
+       ~5MB in total, so every illustration is downscaled before it can be stored. */
+    const DIARY_IMAGE_MAX_EDGE = 800;
+    const DIARY_IMAGE_QUALITY = 0.72;
+
+    function compressImageDataUrl(dataUrl) {
+      return new Promise(resolve => {
+        const img = new Image();
+
+        img.onload = () => {
+          try {
+            const scale = Math.min(1, DIARY_IMAGE_MAX_EDGE / Math.max(img.width, img.height));
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.max(1, Math.round(img.width * scale));
+            canvas.height = Math.max(1, Math.round(img.height * scale));
+
+            const ctx = canvas.getContext('2d');
+            // JPEG carries no alpha channel: lay down the lodge's own gloom first.
+            ctx.fillStyle = '#0c0a09';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            const compressed = canvas.toDataURL('image/jpeg', DIARY_IMAGE_QUALITY);
+            resolve(compressed.length < dataUrl.length ? compressed : dataUrl);
+          } catch (e) {
+            console.warn('插画压缩失败，保留原图。', e);
+            resolve(dataUrl);
+          }
+        };
+
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
+      });
+    }
+
     /* 2. Gemini Imagen generation through the server-side proxy */
     async function generateImagenImage(promptText) {
       let retries = 0;
@@ -1003,7 +1038,11 @@
       while (retries <= maxRetries) {
         try {
           const result = await callSecureProxy('image', { prompt: promptText });
-          if (result.data) return `data:${result.mimeType || 'image/png'};base64,${result.data}`;
+          if (result.data) {
+            // Compress at the single point where images enter the app, so every
+            // call site (editor, archive card, crucible) stores a small copy.
+            return await compressImageDataUrl(`data:${result.mimeType || 'image/png'};base64,${result.data}`);
+          }
           throw new Error('代理未返回图像');
         } catch (err) {
           retries++;
@@ -2213,9 +2252,24 @@
     const ARCHIVE_SIGNATURE = 'nightwatch-lodge-archive';
     const ARCHIVE_VERSION = 1;
 
+    /* Rough gauge only: browsers account for the ~5MB quota in UTF-16 code units. */
+    function estimateStorageKb() {
+      let chars = 0;
+      [KEY_TASKS, KEY_GOALS, KEY_DIARY, KEY_DRAFTS].forEach(key => {
+        try { chars += (localStorage.getItem(key) || '').length; } catch (e) {}
+      });
+      return Math.round(chars * 2 / 1024);
+    }
+
     function openBackupModal() {
-      document.getElementById('backupStats').innerText =
-        `打卡纸条 ${state.tasks.length} 张　誓约 ${state.goals.length} 条　日记 ${state.diaries.length} 页`;
+      const illustrated = state.diaries.filter(d => d.imgUrl).length;
+      const usedKb = estimateStorageKb();
+      const pressure = usedKb > 3500 ? '　⚠ 接近上限，建议擦除旧插画' : '';
+
+      document.getElementById('backupStats').innerHTML =
+        `打卡纸条 ${state.tasks.length} 张　誓约 ${state.goals.length} 条　日记 ${state.diaries.length} 页（含插画 ${illustrated} 张）` +
+        `<br />本机占用 约 ${usedKb} KB / 上限 约 5120 KB<span class="text-rust-400">${pressure}</span>`;
+
       document.getElementById('importFileInput').value = '';
       openModal('backupModal');
     }
