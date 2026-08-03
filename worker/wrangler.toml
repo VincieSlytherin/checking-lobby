@@ -1,0 +1,12 @@
+name = "nightwatch-lodge-ai"
+main = "worker.js"
+compatibility_date = "2026-08-01"
+
+# Replace this with the exact production GitHub Pages origin.
+# Multiple origins must be comma-separated; never use "*" in production.
+[vars]
+ALLOWED_ORIGINS = "https://vincieslytherin.github.io"
+
+# Set secrets through the CLI; never write them into this file:
+#   npx wrangler secret put GEMINI_API_KEY
+#   npx wrangler secret put LODGE_ACCESS_TOKEN

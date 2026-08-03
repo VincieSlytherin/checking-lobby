@@ -1,0 +1,1849 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="h-full bg-stone-950 text-amber-50 select-none">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>噤湖 · 守夜旅舍 (The Nightwatch Lodge — Rusty Lake)</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <!-- Google Vintage Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Noto+Serif+SC:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            serif: ['"Noto Serif SC"', 'serif'],
+            cinzel: ['Cinzel', 'serif']
+          },
+          colors: {
+            lake: {
+              sky: '#5c1926',
+              deepSky: '#2b0b12',
+              water: '#0d1520',
+              deepWater: '#05090f',
+              border: '#3d251d'
+            },
+            parchment: {
+              base: '#1a1614',
+              paper: '#d8c8b0',
+              ink: '#1c1510',
+              border: '#4a3821'
+            },
+            rust: {
+              400: '#d96445',
+              600: '#a63d24',
+              800: '#5c1e10'
+            },
+            brass: {
+              300: '#f0d375',
+              500: '#c99e32',
+              700: '#8c6b1e'
+            }
+          },
+          animation: {
+            'float-slow': 'float 5s ease-in-out infinite',
+            'flicker': 'flicker 2.5s infinite alternate',
+            'bubble': 'bubble 3s ease-in-out infinite',
+            'pendulum': 'swing 3s ease-in-out infinite alternate',
+            'steam-rise': 'steam 4s linear infinite'
+          },
+          keyframes: {
+            float: {
+              '0%, 100%': { transform: 'translateY(0px)' },
+              '50%': { transform: 'translateY(-6px)' }
+            },
+            flicker: {
+              '0%, 100%': { opacity: '0.95', filter: 'drop-shadow(0 0 12px rgba(240, 211, 117, 0.4))' },
+              '50%': { opacity: '0.65', filter: 'drop-shadow(0 0 4px rgba(240, 211, 117, 0.15))' }
+            },
+            swing: {
+              '0%': { transform: 'rotate(-8deg)' },
+              '100%': { transform: 'rotate(8deg)' }
+            },
+            bubble: {
+              '0%, 100%': { transform: 'scale(1) translateY(0)' },
+              '50%': { transform: 'scale(1.15) translateY(-4px)' }
+            },
+            steam: {
+              '0%': { transform: 'translateY(0) scale(0.8)', opacity: '0' },
+              '50%': { opacity: '0.5' },
+              '100%': { transform: 'translateY(-30px) scale(1.4)', opacity: '0' }
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    .rusty-border {
+      border: 3px solid #1c1510;
+      box-shadow: 0 0 0 1px #4a3821, inset 0 0 15px rgba(0,0,0,0.8);
+    }
+    
+    .rusty-card {
+      background: #141110;
+      background-image: radial-gradient(#2b221a 1px, transparent 1px);
+      background-size: 16px 16px;
+      border: 2px solid #3d2b1c;
+    }
+
+    .rusty-paper-box {
+      background: #dfd2b8;
+      color: #1a140e;
+      border: 3px solid #2b1f15;
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.15), 4px 4px 0px #1a140e;
+    }
+
+    #interactiveStage {
+      isolation: isolate;
+      background:
+        radial-gradient(circle at 50% 34%, rgba(116, 82, 45, .16), transparent 38%),
+        linear-gradient(180deg, #181411 0%, #090807 68%, #050505 100%);
+    }
+
+    #interactiveStage::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: 8;
+      pointer-events: none;
+      box-shadow: inset 0 0 70px 24px rgba(0, 0, 0, .78);
+      background: repeating-linear-gradient(0deg, rgba(255,255,255,.012) 0 1px, transparent 1px 4px);
+      mix-blend-mode: screen;
+    }
+
+    .scene-enter { animation: scene-enter .55s cubic-bezier(.2,.8,.2,1) both; }
+    .character-portrait {
+      width: min(62vw, 330px);
+      height: 315px;
+      object-fit: contain;
+      object-position: center bottom;
+      mix-blend-mode: screen;
+      filter: brightness(1.24) contrast(1.06) drop-shadow(0 18px 22px rgba(0,0,0,.8));
+      transform-origin: 50% 88%;
+      animation: lodge-breathe 6s ease-in-out infinite;
+    }
+    .character-portrait.wide { width: min(76vw, 410px); }
+    .character-portrait.moth { animation: moth-breathe 5.4s ease-in-out infinite; }
+    .character-portrait.keys { animation: key-count 4.8s ease-in-out infinite; }
+    .character-portrait.hollow { animation: hollow-drift 7s ease-in-out infinite; opacity: .92; }
+    .character-portrait.clock { animation: clock-submerge 8s ease-in-out infinite; }
+    .character-portrait.clock.tolling { animation: clock-toll .16s ease-in-out 6; }
+
+    .stage-floor {
+      position: absolute;
+      left: -5%; right: -5%; bottom: -18px;
+      height: 88px;
+      background: radial-gradient(ellipse at center, rgba(124,82,38,.22), rgba(0,0,0,.9) 68%);
+      transform: perspective(280px) rotateX(60deg);
+    }
+    .stage-glow {
+      position: absolute;
+      width: 230px; height: 230px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(205,143,45,.18), transparent 67%);
+      filter: blur(6px);
+      animation: candle-pulse 3.2s ease-in-out infinite;
+    }
+    .waterline {
+      position: absolute;
+      z-index: 3;
+      left: -5%; right: -5%; bottom: 26%;
+      height: 42px;
+      background: linear-gradient(180deg, transparent, rgba(17,34,48,.3) 38%, rgba(5,17,27,.72));
+      border-top: 1px solid rgba(157,180,172,.28);
+      animation: water-shift 5s ease-in-out infinite;
+    }
+    .stage-bubble {
+      position: absolute;
+      z-index: 5;
+      bottom: 18%;
+      width: 6px; height: 6px;
+      border: 1px solid rgba(211,220,190,.5);
+      border-radius: 50%;
+      animation: stage-bubble 4s linear infinite;
+    }
+    .npc-mini-img { width: 100%; height: 100%; object-fit: cover; object-position: center 22%; }
+    .fox-profile-img { width: 100%; height: 220px; object-fit: contain; object-position: center; }
+
+    @keyframes scene-enter { from { opacity: 0; transform: scale(1.025); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+    @keyframes lodge-breathe { 0%,100% { transform: translateY(1px) scale(1); } 50% { transform: translateY(-3px) scale(1.008); } }
+    @keyframes moth-breathe { 0%,100% { transform: scale(1); filter: brightness(1.24) contrast(1.06) drop-shadow(0 18px 22px rgba(0,0,0,.8)); } 50% { transform: scale(1.012); filter: brightness(1.3) contrast(1.06) drop-shadow(0 14px 24px rgba(117,48,25,.35)); } }
+    @keyframes key-count { 0%,82%,100% { transform: rotate(0); } 86% { transform: rotate(-.8deg); } 90% { transform: rotate(.8deg); } 94% { transform: rotate(-.4deg); } }
+    @keyframes hollow-drift { 0%,100% { transform: translateY(4px); opacity: .78; } 50% { transform: translateY(-6px); opacity: .96; } }
+    @keyframes clock-submerge { 0%,100% { transform: translateY(3px); } 50% { transform: translateY(-2px); } }
+    @keyframes clock-toll { 0%,100% { transform: translateX(0) rotate(0); } 50% { transform: translateX(2px) rotate(.45deg); } }
+    @keyframes candle-pulse { 0%,100% { opacity: .55; transform: scale(.92); } 50% { opacity: .9; transform: scale(1.08); } }
+    @keyframes water-shift { 0%,100% { transform: translateX(-1%) skewX(-1deg); } 50% { transform: translateX(1%) skewX(1deg); } }
+    @keyframes stage-bubble { 0% { transform: translateY(0) scale(.7); opacity: 0; } 20% { opacity: .65; } 100% { transform: translateY(-120px) scale(1.15); opacity: 0; } }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0b0908; }
+    ::-webkit-scrollbar-thumb { background: #5c1e10; border-radius: 2px; }
+  </style>
+</head>
+
+<body class="h-full font-serif bg-stone-950 text-amber-100 flex flex-col justify-between overflow-x-hidden">
+
+  <header class="border-b-2 border-stone-800 bg-stone-950/90 backdrop-blur-md px-4 py-2.5 sticky top-0 z-50 flex items-center justify-between shadow-2xl">
+    <div class="flex items-center space-x-3">
+      <div class="w-9 h-9 rounded bg-amber-950 border border-brass-500/60 flex items-center justify-center text-brass-300 shadow">
+        <i class="fa-solid fa-hotel text-base"></i>
+      </div>
+      <div>
+        <h1 class="font-cinzel text-base md:text-lg font-black tracking-widest text-amber-200 flex items-center gap-2">
+          噤湖 · 守夜旅舍
+          <span class="text-[10px] font-serif font-normal px-2 py-0.5 rounded bg-rust-800/80 border border-rust-400/50 text-amber-200">
+            ROOM 13
+          </span>
+        </h1>
+        <p class="text-[10px] text-stone-400 font-cinzel tracking-wider hidden sm:block">THE NIGHTWATCH LODGE — RUSTY LAKE</p>
+      </div>
+    </div>
+
+    <!-- Controls & Status -->
+    <div class="flex items-center space-x-2 sm:space-x-4">
+      <button onclick="toggleSound()" id="soundBtn" class="px-3 py-1.5 rounded border border-stone-700 bg-stone-900 text-amber-200 hover:border-brass-500 text-xs transition flex items-center gap-1.5">
+        <i id="soundIcon" class="fa-solid fa-volume-high text-brass-500"></i>
+        <span class="hidden sm:inline">环境音效</span>
+      </button>
+
+      <button onclick="openModal('settingsModal')" class="px-3 py-1.5 rounded border border-stone-700 bg-stone-900 text-amber-200 hover:border-brass-500 text-xs transition flex items-center gap-1.5">
+        <i class="fa-solid fa-shield-halved text-brass-500"></i>
+        <span class="hidden sm:inline">安全 AI 代理</span>
+        <span id="proxyStatusDot" class="w-2 h-2 rounded-full bg-amber-500"></span>
+      </button>
+
+      <!-- Player Profile Badge -->
+      <div onclick="openModal('foxModal')" class="flex items-center gap-2 bg-stone-900 border border-brass-700/60 px-3 py-1 rounded cursor-pointer hover:border-brass-500 transition shadow">
+        <div class="w-6 h-6 rounded bg-stone-800 flex items-center justify-center border border-brass-500 overflow-hidden">
+          <img src="figure/miss-silverfox.png" alt="银狐小姐" class="w-full h-full object-cover object-top" />
+        </div>
+        <span class="text-xs text-amber-200 font-cinzel font-bold">银狐小姐</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-5 grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+    <!-- Left Scene Switcher Sidebar -->
+    <div class="lg:col-span-3 space-y-4">
+      <div class="rusty-card p-3 rounded space-y-2">
+        <h2 class="text-xs font-cinzel tracking-widest text-brass-500 uppercase border-b border-stone-800 pb-2 flex items-center justify-between">
+          <span><i class="fa-solid fa-compass mr-1.5"></i> 旅舍场景切换</span>
+          <span class="text-[10px] text-stone-500 font-mono">SCENES</span>
+        </h2>
+
+        <nav class="space-y-1.5" id="sceneNav">
+          <button onclick="switchScene('checkin')" id="nav-checkin" class="scene-btn w-full text-left px-3 py-2 rounded text-xs transition flex items-center justify-between border border-brass-500/80 bg-amber-950/60 text-amber-200 font-bold">
+            <span class="flex items-center gap-2">
+              <i class="fa-solid fa-feather text-brass-400"></i> 1. 屏息先生的登记者桌
+            </span>
+            <span class="text-[10px] px-1.5 py-0.2 rounded bg-stone-900 border border-stone-700 font-mono" id="badgeTaskCount">0</span>
+          </button>
+
+          <button onclick="switchScene('crucible')" id="nav-crucible" class="scene-btn w-full text-left px-3 py-2 rounded text-xs transition flex items-center justify-between border border-transparent hover:border-stone-700 text-stone-400">
+            <span class="flex items-center gap-2">
+              <i class="fa-solid fa-fire-burner text-rust-400"></i> 2. 灰翅夫人的熬蜡工坊
+            </span>
+            <span class="text-[10px] text-amber-500"><i class="fa-solid fa-droplet"></i></span>
+          </button>
+
+          <button onclick="switchScene('pantry')" id="nav-pantry" class="scene-btn w-full text-left px-3 py-2 rounded text-xs transition flex items-center justify-between border border-transparent hover:border-stone-700 text-stone-400">
+            <span class="flex items-center gap-2">
+              <i class="fa-solid fa-key text-brass-300"></i> 3. 卡尔文的钥匙架 (Goal)
+            </span>
+            <span class="text-[10px] px-1.5 py-0.2 rounded bg-stone-900 border border-stone-700 font-mono" id="badgeGoalCount">0</span>
+          </button>
+
+          <button onclick="switchScene('corridor')" id="nav-corridor" class="scene-btn w-full text-left px-3 py-2 rounded text-xs transition flex items-center justify-between border border-transparent hover:border-stone-700 text-stone-400">
+            <span class="flex items-center gap-2">
+              <i class="fa-solid fa-ghost text-purple-400"></i> 4. 阴影长廊 (空芯)
+            </span>
+            <span class="text-[10px] text-purple-400 font-mono" id="badgeHollowCount">0</span>
+          </button>
+
+          <button onclick="switchScene('clock')" id="nav-clock" class="scene-btn w-full text-left px-3 py-2 rounded text-xs transition flex items-center justify-between border border-transparent hover:border-stone-700 text-stone-400">
+            <span class="flex items-center gap-2">
+              <i class="fa-solid fa-stopwatch text-amber-500"></i> 5. 沉水古钟 (第七下)
+            </span>
+            <span class="text-[10px] text-stone-500 font-mono">7th</span>
+          </button>
+
+          <button onclick="switchScene('diary')" id="nav-diary" class="scene-btn w-full text-left px-3 py-2 rounded text-xs transition flex items-center justify-between border border-transparent hover:border-stone-700 text-stone-400">
+            <span class="flex items-center gap-2">
+              <i class="fa-solid fa-book-bookmark text-amber-400"></i> 6. 星芒皮质日记册
+            </span>
+            <span class="text-[10px] px-1.5 py-0.2 rounded bg-stone-900 border border-stone-700 font-mono" id="badgeDiaryCount">0</span>
+          </button>
+
+          <button onclick="switchScene('seance')" id="nav-seance" class="scene-btn w-full text-left px-3 py-2 rounded text-xs transition flex items-center justify-between border border-transparent hover:border-stone-700 text-emerald-400">
+            <span class="flex items-center gap-2">
+              <i class="fa-solid fa-eye text-emerald-400"></i> 7. 守夜降灵会 (AI 对话)
+            </span>
+            <span class="text-[10px] px-1 py-0.2 rounded bg-emerald-950 border border-emerald-800 text-emerald-300 font-mono">AI Chat</span>
+          </button>
+        </nav>
+      </div>
+
+      <!-- Character Status Box -->
+      <div class="rusty-card p-3 rounded space-y-2 relative overflow-hidden">
+        <div class="flex items-center gap-2.5">
+          <div class="w-10 h-10 rounded border border-brass-500 bg-stone-900 flex items-center justify-center shrink-0 shadow overflow-hidden" id="npcMiniAvatar">
+            <img src="figure/mr-breathhold.png" alt="屏息先生" class="npc-mini-img" />
+          </div>
+          <div>
+            <h3 class="text-xs font-bold text-amber-200" id="npcMiniName">屏息先生</h3>
+            <p class="text-[10px] text-brass-500/90 font-cinzel" id="npcMiniTitle">MR. BREATH-HOLD</p>
+          </div>
+        </div>
+        <p class="text-[11px] text-stone-300 italic border-t border-stone-800 pt-2 leading-relaxed" id="npcMiniQuote">
+          “……” (喉头缓缓起伏，吞下纸张的食道发出干瘪的折叠声。)
+        </p>
+      </div>
+    </div>
+
+    <!-- Center & Right Interactive Area -->
+    <div class="lg:col-span-9 space-y-5">
+
+      <!-- Point-and-Click Visual Scene Viewport -->
+      <div class="rusty-border rounded relative bg-stone-950 overflow-hidden shadow-2xl min-h-[380px] sm:min-h-[420px] flex flex-col justify-between" id="sceneViewport">
+        
+        <!-- Scene Visual Header -->
+        <div class="h-16 border-b border-stone-800 bg-gradient-to-r from-lake-deepSky via-lake-sky to-lake-deepSky p-2 flex items-center justify-between relative overflow-hidden">
+          <svg class="absolute inset-0 w-full h-full opacity-40 pointer-events-none" preserveAspectRatio="none" viewBox="0 0 800 100">
+            <circle cx="700" cy="30" r="18" fill="#f0d375" opacity="0.8"/>
+            <path d="M0,100 L0,70 L200,60 L280,30 L320,30 L400,60 L800,75 L800,100 Z" fill="#05090f"/>
+            <rect x="290" y="40" width="8" height="12" fill="#f0d375" opacity="0.9"/>
+            <rect x="305" y="40" width="8" height="12" fill="#f0d375" opacity="0.9"/>
+          </svg>
+
+          <div class="relative z-10 flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-rust-600 animate-ping"></span>
+            <span class="font-cinzel text-xs text-amber-200 font-bold tracking-widest uppercase" id="sceneTitle">
+              SCENE 1: CHECK-IN DESK — MR. BREATH-HOLD
+            </span>
+          </div>
+          
+          <span class="relative z-10 text-[10px] text-stone-400 font-mono" id="sceneSubtext">RUSTY LAKE LODGE #13</span>
+        </div>
+
+        <!-- Interactive Visual Stage Canvas Area -->
+        <div class="flex-1 relative bg-gradient-to-b from-stone-900 to-stone-950 p-4 flex items-center justify-center overflow-hidden min-h-[280px]" id="interactiveStage">
+          <!-- Dynamic Scene SVG & Character Sprites -->
+        </div>
+
+        <!-- Speech / Interaction Overlay Box -->
+        <div class="p-3 bg-stone-950/95 border-t border-stone-800 relative z-20">
+          <div class="rusty-paper-box p-3 rounded relative">
+            <div class="flex items-center justify-between border-b border-stone-800/20 pb-1 mb-1.5 text-[11px] font-bold font-cinzel text-amber-950">
+              <span id="speakerName"><i class="fa-solid fa-comment-dots mr-1"></i> 对话与提示</span>
+              <div class="flex items-center gap-2">
+                <button onclick="speakCurrentDialogue()" id="btnTtsDialogue" class="px-2 py-0.5 rounded bg-amber-950 text-amber-100 hover:bg-brass-700 text-[10px] flex items-center gap-1 transition" title="使用 Gemini TTS 播放原声">
+                  <i class="fa-solid fa-volume-high text-brass-300"></i> AI 语音低语
+                </button>
+                <span id="speakerTag" class="text-[10px] text-stone-600">INTERACTION</span>
+              </div>
+            </div>
+            <p id="dialogueText" class="text-xs sm:text-sm font-serif leading-relaxed text-amber-950">
+              点击场景中的角色或物体，可与他们交谈并执行记忆熔炼操作。
+            </p>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- SCENE 1 PANELS: Daily Task List -->
+      <div id="panel-checkin" class="scene-panel space-y-4">
+        <div class="rusty-card p-4 rounded space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-800 pb-3">
+            <div>
+              <h2 class="text-sm font-bold text-amber-200 flex items-center gap-2">
+                <i class="fa-solid fa-pen-nib text-brass-500"></i> 晨间打卡登记纸条
+              </h2>
+              <p class="text-[11px] text-stone-400 mt-0.5">写下今日要执行的任务凭证，递给屏息先生。他会将纸条咽入腹中。</p>
+            </div>
+            <button onclick="openAddTaskModal()" class="px-3 py-1.5 rounded bg-rust-800 hover:bg-rust-600 border border-rust-400 text-amber-100 text-xs font-bold transition flex items-center gap-1.5 shadow">
+              <i class="fa-solid fa-plus"></i> 新增打卡纸条
+            </button>
+          </div>
+
+          <!-- Task Card List -->
+          <div id="taskListContainer" class="space-y-2"></div>
+        </div>
+      </div>
+
+      <!-- SCENE 2 PANELS: Madame Greywing's Wax Melting Ritual -->
+      <div id="panel-crucible" class="scene-panel hidden space-y-4">
+        <div class="rusty-card p-4 rounded space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-stone-800 pb-3 gap-2">
+            <div>
+              <h2 class="text-sm font-bold text-amber-200 flex items-center gap-2">
+                <i class="fa-solid fa-fire-burner text-rust-400"></i> 灰翅夫人的记忆熬蜡仪式
+              </h2>
+              <p class="text-[11px] text-stone-400 mt-0.5">“完成的事比较甜……” 勾选今日已完成的事情，写下总结并放入巨铜锅。</p>
+            </div>
+            <button onclick="assessSoulPurity()" class="px-3 py-1.5 rounded bg-amber-950 hover:bg-brass-700 border border-brass-500 text-amber-200 text-xs font-bold transition flex items-center gap-1.5 shadow">
+              <i class="fa-solid fa-chart-pie text-brass-400"></i> 灰翅夫人的灵魂考炼报告
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Checklist and Reflection input -->
+            <div class="space-y-3">
+              <h3 class="text-xs font-bold text-brass-400">选择今日已浸蜡凭证：</h3>
+              <div id="crucibleChecklist" class="space-y-1.5 max-h-48 overflow-y-auto pr-1"></div>
+
+              <div>
+                <label class="block text-[11px] text-stone-400 mb-1">今夜的沉淀感悟 (写给灰翅夫人的信句)</label>
+                <textarea id="reflectionInput" rows="3" placeholder="写下今夜合上日记本前的执念或心得..." class="w-full bg-stone-950 border border-stone-800 rounded p-2 text-xs text-amber-100 placeholder-stone-600 focus:outline-none focus:border-brass-500"></textarea>
+              </div>
+
+              <button id="btnMeltWax" onclick="performWaxMelting()" class="w-full py-2.5 rounded bg-gradient-to-r from-rust-800 via-amber-950 to-rust-800 hover:from-rust-600 hover:to-amber-900 border border-brass-500/60 text-amber-100 text-xs font-bold transition shadow-xl flex items-center justify-center gap-2">
+                <i class="fa-solid fa-fire"></i> 放入铜锅，熬炼记忆日记
+              </button>
+            </div>
+
+            <!-- Output Diary Result -->
+            <div class="rusty-border rounded p-3 bg-stone-950/80 flex flex-col justify-between space-y-2">
+              <div class="flex items-center justify-between border-b border-stone-800 pb-1 text-xs text-brass-400 font-cinzel">
+                <span><i class="fa-solid fa-book-open mr-1"></i> 熬煮熔出的日记文章</span>
+                <span id="outputDiaryDate" class="text-[10px] text-stone-500"></span>
+              </div>
+              
+              <div id="outputDiaryText" class="text-xs text-amber-100/90 leading-relaxed font-serif min-h-[120px] max-h-[160px] overflow-y-auto italic p-2 bg-stone-900/60 rounded border border-stone-800">
+                铜锅翻滚着微弱的微光，静待你将凭证放入...
+              </div>
+
+              <div id="outputDiaryImgContainer" class="hidden rounded overflow-hidden border border-amber-900/60 bg-stone-900 p-1 flex flex-col items-center">
+                <img id="outputDiaryImg" src="" alt="Memory Etching" class="w-full max-h-40 object-cover rounded" />
+              </div>
+
+              <button id="btnGenerateDiaryImg" onclick="generateDiaryImageForLatest()" class="hidden w-full py-1.5 rounded bg-stone-900 hover:bg-stone-800 border border-amber-600/50 text-amber-200 text-xs flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-palette text-amber-400"></i> 使用 Imagen 凝结记忆图景
+              </button>
+            </div>
+          </div>
+
+          <!-- Structured Soul Report Box -->
+          <div id="soulReportContainer" class="hidden p-3 rounded bg-stone-950 border border-brass-700/60 space-y-2 text-xs">
+            <div class="flex items-center justify-between border-b border-stone-800 pb-1">
+              <span class="font-bold text-brass-300"><i class="fa-solid fa-certificate mr-1"></i> 灵魂纯度考炼鉴定单</span>
+              <span id="soulPurityBadge" class="px-2 py-0.5 rounded bg-brass-800 text-amber-100 text-[10px] font-mono">0% Purity</span>
+            </div>
+            <p id="soulAnalysisText" class="text-stone-300 italic"></p>
+            <div class="p-2 bg-amber-950/40 rounded border border-amber-800/40 text-[11px] text-amber-200">
+              <strong>旅舍解密线索：</strong> <span id="soulSecretText">...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCENE 3 PANELS: Calvin's Keys & Lake Lockboxes -->
+      <div id="panel-pantry" class="scene-panel hidden space-y-4">
+        <div class="rusty-card p-4 rounded space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-800 pb-3">
+            <div>
+              <h2 class="text-sm font-bold text-amber-200 flex items-center gap-2">
+                <i class="fa-solid fa-scroll text-brass-400"></i> 沉于湖底的黄铜锁箱 (近期 Goal)
+              </h2>
+              <p class="text-[11px] text-stone-400 mt-0.5">獾头管家卡尔文执掌黄铜钥匙。每次熬蜡将逐步解除锁箱齿轮。</p>
+            </div>
+            <button onclick="openAddGoalModal()" class="px-3 py-1.5 rounded bg-amber-950 hover:bg-brass-700 border border-brass-500 text-amber-100 text-xs font-bold transition flex items-center gap-1.5 shadow">
+              <i class="fa-solid fa-key"></i> 铭刻新誓约 (Goal)
+            </button>
+          </div>
+
+          <div id="goalListContainer" class="space-y-3"></div>
+        </div>
+      </div>
+
+      <!-- SCENE 4 PANELS: Hollow Wicks Shadow Corridor -->
+      <div id="panel-corridor" class="scene-panel hidden space-y-4">
+        <div class="rusty-card p-4 rounded space-y-3">
+          <div class="border-b border-stone-800 pb-2">
+            <h2 class="text-sm font-bold text-purple-300 flex items-center gap-2">
+              <i class="fa-solid fa-ghost text-purple-400"></i> 走廊尽头的无脸空芯
+            </h2>
+            <p class="text-[11px] text-stone-400 mt-0.5">没浸过蜡的未竟之事化为影子伫立在长廊里。点击它们听取低语。</p>
+          </div>
+
+          <div id="hollowWicksList" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 p-2 bg-stone-950 rounded border border-purple-950"></div>
+        </div>
+      </div>
+
+      <!-- SCENE 5 PANELS: Sunken Grandfather Clock -->
+      <div id="panel-clock" class="scene-panel hidden space-y-4">
+        <div class="rusty-card p-4 rounded space-y-3">
+          <div class="border-b border-stone-800 pb-2">
+            <h2 class="text-sm font-bold text-amber-200 flex items-center gap-2">
+              <i class="fa-solid fa-bell text-brass-500"></i> 缺失的第七下钟声 (The Seventh Toll)
+            </h2>
+            <p class="text-[11px] text-stone-400 mt-0.5">点击湖水中的古钟敲响钟声。第7下戛然而止时，Gemini 代理将给出命运断章预言。</p>
+          </div>
+
+          <div class="text-center py-4 space-y-3">
+            <button onclick="triggerClockToll()" class="px-6 py-3 rounded-full bg-stone-900 border-2 border-brass-500 text-brass-300 hover:text-amber-100 hover:border-amber-300 transition shadow-2xl font-cinzel font-bold text-sm">
+              <i class="fa-solid fa-stopwatch mr-2"></i> 触碰古钟 (敲响钟声)
+            </button>
+            <div id="prophecyOutput" class="hidden rusty-paper-box p-3 rounded text-left text-xs font-serif leading-relaxed text-amber-950 space-y-1">
+              <div class="font-bold font-cinzel border-b border-amber-950/20 pb-1 flex justify-between">
+                <span>第七下钟声的断章预言</span>
+                <span id="prophecyTime" class="text-[10px]"></span>
+              </div>
+              <p id="prophecyText" class="italic pt-1">...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCENE 6 PANELS: Historical Diary Log Archive -->
+      <div id="panel-diary" class="scene-panel hidden space-y-4">
+        <div class="rusty-card p-4 rounded space-y-3">
+          <div class="border-b border-stone-800 pb-2 flex items-center justify-between">
+            <div>
+              <h2 class="text-sm font-bold text-amber-200 flex items-center gap-2">
+                <i class="fa-solid fa-book-atlas text-brass-500"></i> 星芒皮质日记册 (历史档案)
+              </h2>
+              <p class="text-[11px] text-stone-400 mt-0.5">完全支持编辑与彻底擦除。擦除日记会彻底散去对应的记忆。</p>
+            </div>
+          </div>
+
+          <div id="diaryArchiveContainer" class="space-y-3"></div>
+        </div>
+      </div>
+
+      <!-- SCENE 7 PANELS: Séance Room (Multi-turn AI Chat) -->
+      <div id="panel-seance" class="scene-panel hidden space-y-4">
+        <div class="rusty-card p-4 rounded space-y-3">
+          <div class="border-b border-stone-800 pb-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h2 class="text-sm font-bold text-emerald-300 flex items-center gap-2">
+                <i class="fa-solid fa-feather-pointed text-emerald-400"></i> 守夜降灵茶室 (AI 对话与降灵会)
+              </h2>
+              <p class="text-[11px] text-stone-400 mt-0.5">与旅舍中的住客开启多轮深度对话，探索记忆与湖底真相。</p>
+            </div>
+            
+            <!-- Select Resident NPC -->
+            <select id="seanceNpcSelect" onchange="resetSeanceChat()" class="bg-stone-950 border border-emerald-800 text-emerald-200 text-xs p-1.5 rounded focus:outline-none">
+              <option value="checkin">屏息先生 (Mr. Breath-Hold)</option>
+              <option value="crucible">灰翅夫人 (Madame Greywing)</option>
+              <option value="pantry">卡尔文 (Calvin - Keymaster)</option>
+              <option value="clock">第七下钟声 (The Seventh Toll)</option>
+              <option value="corridor">空芯低语者 (Hollow Wick)</option>
+            </select>
+          </div>
+
+          <!-- Chat History Window -->
+          <div id="seanceChatBox" class="rusty-border p-3 rounded bg-stone-950 min-h-[220px] max-h-[280px] overflow-y-auto space-y-2.5 text-xs">
+            <div class="text-stone-500 italic text-center text-[11px]">茶室的烛火正在微微摇晃，请在下方挑起话题...</div>
+          </div>
+
+          <!-- Chat Input Controls -->
+          <div class="flex gap-2">
+            <input type="text" id="seanceInput" placeholder="向住客提问或倾诉关于记忆的执念..." class="flex-1 bg-stone-950 border border-stone-800 rounded p-2 text-xs text-amber-100 focus:outline-none focus:border-emerald-500" onkeydown="if(event.key==='Enter') sendSeanceMessage()" />
+            <button onclick="sendSeanceMessage()" id="btnSendSeance" class="px-4 py-2 bg-emerald-950 hover:bg-emerald-800 border border-emerald-600 text-emerald-100 text-xs font-bold rounded transition flex items-center gap-1.5">
+              <i class="fa-solid fa-paper-plane"></i> 递出交谈
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+
+  <!-- MODAL: ADD / EDIT TASK -->
+  <div id="taskModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="rusty-card max-w-md w-full p-5 rounded space-y-4 shadow-2xl relative">
+      <div class="flex justify-between items-center border-b border-stone-800 pb-2">
+        <h3 class="text-sm font-bold text-amber-200" id="taskModalTitle"><i class="fa-solid fa-pen-fancy text-brass-500 mr-2"></i> 写入打卡纸条</h3>
+        <button onclick="closeModal('taskModal')" class="text-stone-400 hover:text-amber-200"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <input type="hidden" id="editTaskId" value="" />
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label class="block text-stone-300">任务名称 / 执念事由</label>
+            <button type="button" onclick="aiTranslateTaskTitle()" class="text-[10px] text-brass-400 hover:text-amber-200 transition flex items-center gap-1">
+              <i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i> Gemini 转化为锈湖契约语
+            </button>
+          </div>
+          <input type="text" id="taskTitleInput" placeholder="例如：完成每日代码构筑与测试" class="w-full bg-stone-950 border border-stone-800 rounded p-2 text-amber-100 focus:outline-none focus:border-brass-500" />
+        </div>
+
+        <div>
+          <label class="block text-stone-300 mb-1">关联近期Goal (可选)</label>
+          <select id="taskGoalSelect" class="w-full bg-stone-950 border border-stone-800 rounded p-2 text-amber-100 focus:outline-none focus:border-brass-500">
+            <option value="">-- 独立打卡任务 --</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-stone-300 mb-1">说明与检验细则</label>
+          <textarea id="taskDescInput" rows="2" placeholder="衡量完成标准的凭据，递给屏息先生..." class="w-full bg-stone-950 border border-stone-800 rounded p-2 text-amber-100 focus:outline-none focus:border-brass-500"></textarea>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2 border-t border-stone-800">
+        <button onclick="closeModal('taskModal')" class="px-3 py-1.5 rounded border border-stone-700 text-stone-300 text-xs">取消</button>
+        <button onclick="saveTask()" class="px-4 py-1.5 rounded bg-rust-800 hover:bg-rust-600 border border-rust-400 text-amber-100 text-xs font-bold">递给屏息先生</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD / EDIT GOAL -->
+  <div id="goalModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="rusty-card max-w-md w-full p-5 rounded space-y-4 shadow-2xl relative">
+      <div class="flex justify-between items-center border-b border-stone-800 pb-2">
+        <h3 class="text-sm font-bold text-brass-300" id="goalModalTitle"><i class="fa-solid fa-scroll text-brass-500 mr-2"></i> 铭刻近期誓约 (Goal)</h3>
+        <button onclick="closeModal('goalModal')" class="text-stone-400 hover:text-amber-200"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <input type="hidden" id="editGoalId" value="" />
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <label class="block text-stone-300">誓约目标名称</label>
+            <button type="button" onclick="aiTranslateGoalTitle()" class="text-[10px] text-brass-400 hover:text-amber-200 transition flex items-center gap-1">
+              <i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i> Gemini 转化为锈湖誓约语
+            </button>
+          </div>
+          <input type="text" id="goalTitleInput" placeholder="例如：解开第13号黄铜锁箱密码" class="w-full bg-stone-950 border border-stone-800 rounded p-2 text-amber-100 focus:outline-none focus:border-brass-500" />
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-stone-300 mb-1">解密熔蜡所需次数</label>
+            <input type="number" id="goalTargetInput" min="1" value="7" class="w-full bg-stone-950 border border-stone-800 rounded p-2 text-amber-100 focus:outline-none focus:border-brass-500" />
+          </div>
+          <div>
+            <label class="block text-stone-300 mb-1">誓约周期 (天)</label>
+            <input type="number" id="goalDaysInput" min="1" value="14" class="w-full bg-stone-950 border border-stone-800 rounded p-2 text-amber-100 focus:outline-none focus:border-brass-500" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-stone-300 mb-1">誓约蓝图与远景说明</label>
+          <textarea id="goalDescInput" rows="2" placeholder="锁箱中保存的誓约真相细节..." class="w-full bg-stone-950 border border-stone-800 rounded p-2 text-amber-100 focus:outline-none focus:border-brass-500"></textarea>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2 border-t border-stone-800">
+        <button onclick="closeModal('goalModal')" class="px-3 py-1.5 rounded border border-stone-700 text-stone-300 text-xs">取消</button>
+        <button onclick="saveGoal()" class="px-4 py-1.5 rounded bg-brass-700 hover:bg-brass-500 text-stone-950 text-xs font-bold">注入锁箱</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SECURE AI PROXY SETTINGS -->
+  <div id="settingsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="rusty-card max-w-sm w-full p-5 rounded space-y-3 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-stone-800 pb-2">
+        <h3 class="text-sm font-bold text-brass-300"><i class="fa-solid fa-shield-halved mr-2"></i> 安全 AI 代理</h3>
+        <button onclick="closeModal('settingsModal')" class="text-stone-400 hover:text-amber-200"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <p class="text-[11px] text-stone-400 leading-relaxed">
+        浏览器不再接触 Gemini API Key。AI 请求只会发送到你部署的安全代理；Gemini Key 必须保存在代理的服务端 Secret 中。
+      </p>
+
+      <div>
+        <label class="block text-xs text-amber-300 mb-1">代理地址</label>
+        <input type="url" id="proxyUrlInput" placeholder="https://nightwatch-lodge-ai.vincieslytherin.workers.dev" class="w-full bg-stone-950 border border-stone-800 rounded p-2 text-xs font-mono text-amber-100 focus:outline-none focus:border-brass-500" />
+        <p class="text-[10px] text-stone-500 mt-1">地址可保存在本机；不得包含 Gemini Key。</p>
+      </div>
+
+      <div>
+        <label class="block text-xs text-amber-300 mb-1">代理访问令牌</label>
+        <input type="password" id="proxyTokenInput" autocomplete="off" placeholder="每次打开页面后输入" class="w-full bg-stone-950 border border-stone-800 rounded p-2 text-xs font-mono text-amber-100 focus:outline-none focus:border-brass-500" />
+        <p class="text-[10px] text-stone-500 mt-1">只保存在当前页面内存，刷新或关闭后自动消失。</p>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2 border-t border-stone-800">
+        <button onclick="closeModal('settingsModal')" class="px-3 py-1.5 rounded border border-stone-700 text-stone-300 text-xs">关闭</button>
+        <button onclick="saveProxyConfig()" class="px-4 py-1.5 rounded bg-brass-500 text-stone-950 font-bold text-xs">连接代理</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: FOX PROFILE -->
+  <div id="foxModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="rusty-card max-w-sm w-full p-5 rounded space-y-3 shadow-2xl text-center">
+      <div class="w-full h-[220px] mx-auto rounded border-2 border-brass-500/70 bg-black/70 flex items-center justify-center shadow overflow-hidden">
+        <img src="figure/miss-silverfox.png" alt="第十三位住客银狐小姐全身立绘" class="fox-profile-img" />
+      </div>
+      <h3 class="text-sm font-bold text-amber-200">第十三位住客 · 银狐小姐</h3>
+      <p class="text-[11px] text-stone-400 italic">“名字在登记册上曾被划掉过一次。”</p>
+      <div class="text-[11px] text-stone-300 text-left bg-stone-950 p-2.5 rounded border border-stone-800 space-y-1">
+        <p>• <strong>服装</strong>：缀满金线星轨的深色袍服</p>
+        <p>• <strong>信物</strong>：怀表、黄铜钥匙、羊皮纸卷</p>
+        <p>• <strong>使命</strong>：在噤湖畔将过往记忆熬成蜡，解开湖底锁箱</p>
+      </div>
+      <button onclick="closeModal('foxModal')" class="w-full py-1.5 rounded bg-amber-950 text-amber-200 text-xs font-bold border border-stone-800">关闭档案</button>
+    </div>
+  </div>
+
+  <script>
+    /* ================= APP STATE & LOCALSTORAGE ================= */
+    const KEY_TASKS = 'rusty_lodge_tasks_v2';
+    const KEY_GOALS = 'rusty_lodge_goals_v2';
+    const KEY_DIARY = 'rusty_lodge_diary_v2';
+    const KEY_PROXY_URL = 'nightwatch_lodge_proxy_url_v1';
+    const LEGACY_KEY_API = 'rusty_lodge_gemini_key_v2';
+
+    // Security migration: permanently remove any Gemini key saved by older builds.
+    localStorage.removeItem(LEGACY_KEY_API);
+
+    let state = {
+      activeScene: 'checkin',
+      soundEnabled: true,
+      proxyUrl: localStorage.getItem(KEY_PROXY_URL) || 'https://nightwatch-lodge-ai.vincieslytherin.workers.dev',
+      proxyToken: '',
+      tasks: [],
+      goals: [],
+      diaries: [],
+      seanceHistory: [],
+      lastGeneratedDiaryText: '',
+      currentDialogueText: ''
+    };
+
+    /* ================= AUDIO SYNTHESIZER & PCM HELPERS ================= */
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function playSound(type) {
+      if (!state.soundEnabled) return;
+      initAudio();
+
+      try {
+        const now = audioCtx.currentTime;
+        if (type === 'clockToll') {
+          const osc1 = audioCtx.createOscillator();
+          const osc2 = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc1.type = 'sine'; osc2.type = 'triangle';
+          osc1.frequency.setValueAtTime(108, now);
+          osc2.frequency.setValueAtTime(162, now);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 3.0);
+          osc1.connect(gain); osc2.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc1.start(now); osc2.start(now);
+          osc1.stop(now + 3.0); osc2.stop(now + 3.0);
+        } else if (type === 'swallow') {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(280, now);
+          osc.frequency.exponentialRampToValueAtTime(80, now + 0.35);
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+          osc.connect(gain); gain.connect(audioCtx.destination);
+          osc.start(now); osc.stop(now + 0.35);
+        } else if (type === 'bubble') {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(400 + Math.random() * 250, now);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+          osc.connect(gain); gain.connect(audioCtx.destination);
+          osc.start(now); osc.stop(now + 0.12);
+        } else if (type === 'key') {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(1400, now);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+          osc.connect(gain); gain.connect(audioCtx.destination);
+          osc.start(now); osc.stop(now + 0.15);
+        }
+      } catch (e) {}
+    }
+
+    function toggleSound() {
+      state.soundEnabled = !state.soundEnabled;
+      document.getElementById('soundIcon').className = state.soundEnabled ? "fa-solid fa-volume-high text-brass-500" : "fa-solid fa-volume-xmark text-stone-500";
+    }
+
+    /* PCM16 ArrayBuffer to WAV Blob converter for Gemini TTS */
+    function pcmToWav(pcm16Data, sampleRate = 24000) {
+      const buffer = new ArrayBuffer(44 + pcm16Data.length * 2);
+      const view = new DataView(buffer);
+      
+      function writeString(view, offset, string) {
+        for (let i = 0; i < string.length; i++) {
+          view.setUint8(offset + i, string.charCodeAt(i));
+        }
+      }
+
+      writeString(view, 0, 'RIFF');
+      view.setUint32(4, 36 + pcm16Data.length * 2, true);
+      writeString(view, 8, 'WAVE');
+      writeString(view, 12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true); // Raw PCM
+      view.setUint16(22, 1, true); // Mono
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      writeString(view, 36, 'data');
+      view.setUint32(40, pcm16Data.length * 2, true);
+      
+      let offset = 44;
+      for (let i = 0; i < pcm16Data.length; i++, offset += 2) {
+        view.setInt16(offset, pcm16Data[i], true);
+      }
+      
+      return new Blob([buffer], { type: 'audio/wav' });
+    }
+
+
+    function normalizedProxyUrl() {
+      if (!state.proxyUrl || !state.proxyToken) {
+        openModal('settingsModal');
+        throw new Error('请先连接安全 AI 代理');
+      }
+      const url = new URL(state.proxyUrl);
+      const localDev = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+      if (url.protocol !== 'https:' && !localDev) throw new Error('安全代理必须使用 HTTPS');
+      if (url.username || url.password || url.search || url.hash) throw new Error('代理地址不能包含凭据、查询参数或片段');
+      return url.toString();
+    }
+
+    async function callSecureProxy(action, payload) {
+      const response = await fetch(normalizedProxyUrl(), {
+        method: 'POST',
+        mode: 'cors',
+        cache: 'no-store',
+        credentials: 'omit',
+        referrerPolicy: 'no-referrer',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${state.proxyToken}`
+        },
+        body: JSON.stringify({ action, ...payload })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || `安全代理错误 ${response.status}`);
+      return result;
+    }
+
+    /* 1. Gemini Text Generation through the server-side proxy */
+    async function callGeminiAPI(systemPrompt, userPrompt, jsonSchema = null) {
+      let retries = 0;
+      const maxRetries = 3;
+      let delay = 1000;
+
+      while (retries <= maxRetries) {
+        try {
+          const result = await callSecureProxy('text', { systemPrompt, userPrompt, jsonSchema });
+          if (result.text) return result.text;
+          throw new Error('代理返回格式无效');
+        } catch (err) {
+          retries++;
+          if (retries > maxRetries) throw err;
+          await new Promise(r => setTimeout(r, delay));
+          delay *= 2;
+        }
+      }
+    }
+
+    /* 2. Gemini Imagen generation through the server-side proxy */
+    async function generateImagenImage(promptText) {
+      let retries = 0;
+      const maxRetries = 2;
+      let delay = 1000;
+
+      while (retries <= maxRetries) {
+        try {
+          const result = await callSecureProxy('image', { prompt: promptText });
+          if (result.data) return `data:${result.mimeType || 'image/png'};base64,${result.data}`;
+          throw new Error('代理未返回图像');
+        } catch (err) {
+          retries++;
+          if (retries > maxRetries) throw err;
+          await new Promise(r => setTimeout(r, delay));
+          delay *= 2;
+        }
+      }
+    }
+
+    /* 3. Gemini Text-To-Speech through the server-side proxy */
+    async function generateGeminiTTS(textToSpeak, voiceName = 'Zephyr') {
+      try {
+        const result = await callSecureProxy('tts', { text: textToSpeak, voice: voiceName });
+        const base64Audio = result.data;
+        const mimeType = result.mimeType || '';
+
+        if (base64Audio) {
+          let sampleRate = 24000;
+          const match = mimeType.match(/rate=(\d+)/);
+          if (match) sampleRate = parseInt(match[1], 10);
+
+          const binaryString = atob(base64Audio);
+          const len = binaryString.length;
+          const bytes = new Uint8Array(len);
+          for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          
+          const pcm16 = new Int16Array(bytes.buffer);
+          const wavBlob = pcmToWav(pcm16, sampleRate);
+          const audioUrl = URL.createObjectURL(wavBlob);
+          const audio = new Audio(audioUrl);
+          audio.play();
+        }
+      } catch (err) {
+        console.warn('TTS unavailable through secure proxy.', err);
+      }
+    }
+
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadState();
+      renderAll();
+      updateProxyStatus();
+      switchScene(state.activeScene);
+    });
+
+    function loadState() {
+      const storedTasks = localStorage.getItem(KEY_TASKS);
+      const storedGoals = localStorage.getItem(KEY_GOALS);
+      const storedDiaries = localStorage.getItem(KEY_DIARY);
+
+      state.tasks = storedTasks ? JSON.parse(storedTasks) : [
+        { id: 't-1', title: '查验第13号住客的入住名册', desc: '确认划掉的字迹偏旁', completed: true, goalId: 'g-1' },
+        { id: 't-2', title: '倾听沉水古钟的第六下鸣响', desc: '记录缺失的第七下方向', completed: false, goalId: '' }
+      ];
+
+      state.goals = storedGoals ? JSON.parse(storedGoals) : [
+        { id: 'g-1', title: '解开沉于湖底的第13号黄铜锁箱', target: 7, current: 3, days: 14, desc: '锁箱中放着关于名字被划掉的真相。' }
+      ];
+
+      state.diaries = storedDiaries ? JSON.parse(storedDiaries) : [
+        { id: 'd-1', date: '1971-08-12', text: '今夜灰翅夫人从巨铜锅里舀出一勺滚烫的蜡。蜡液滴在黑色墨迹上，隐约浮现出“银狐”两个字。走廊尽头的影子没有增加。', imgUrl: '' }
+      ];
+    }
+
+    function saveState() {
+      localStorage.setItem(KEY_TASKS, JSON.stringify(state.tasks));
+      localStorage.setItem(KEY_GOALS, JSON.stringify(state.goals));
+      localStorage.setItem(KEY_DIARY, JSON.stringify(state.diaries));
+    }
+
+    function switchScene(sceneId) {
+      state.activeScene = sceneId;
+
+      document.querySelectorAll('.scene-btn').forEach(btn => {
+        btn.classList.remove('border-brass-500/80', 'bg-amber-950/60', 'text-amber-200', 'font-bold');
+        btn.classList.add('border-transparent', 'text-stone-400');
+      });
+      const activeNav = document.getElementById(`nav-${sceneId}`);
+      if (activeNav) {
+        activeNav.classList.add('border-brass-500/80', 'bg-amber-950/60', 'text-amber-200', 'font-bold');
+        activeNav.classList.remove('border-transparent', 'text-stone-400');
+      }
+
+      document.querySelectorAll('.scene-panel').forEach(p => p.classList.add('hidden'));
+      const activePanel = document.getElementById(`panel-${sceneId}`);
+      if (activePanel) activePanel.classList.remove('hidden');
+
+      renderInteractiveStage(sceneId);
+      updateNpcInfo(sceneId);
+    }
+
+    function updateNpcInfo(sceneId) {
+      const avatar = document.getElementById('npcMiniAvatar');
+      const name = document.getElementById('npcMiniName');
+      const title = document.getElementById('npcMiniTitle');
+      const quote = document.getElementById('npcMiniQuote');
+
+      if (sceneId === 'checkin') {
+        avatar.innerHTML = `<img src="figure/mr-breathhold.png" alt="屏息先生" class="npc-mini-img">`;
+        name.innerText = "屏息先生";
+        title.innerText = "MR. BREATH-HOLD";
+        quote.innerText = "“……” (苍鹭头旅舍主人静静注视着你。咽下的纸张在食道里折叠发响。)";
+      } else if (sceneId === 'crucible') {
+        avatar.innerHTML = `<img src="figure/madame-greywing.png" alt="灰翅夫人" class="npc-mini-img">`;
+        name.innerText = "灰翅夫人";
+        title.innerText = "MADAME GREYWING";
+        quote.innerText = "“完成了的事比较甜…… 把纸条放入沸蜡吧。”";
+      } else if (sceneId === 'pantry') {
+        avatar.innerHTML = `<img src="figure/calvin.png" alt="卡尔文" class="npc-mini-img">`;
+        name.innerText = "卡尔文";
+        title.innerText = "CALVIN — KEYMASTER";
+        quote.innerText = "“1, 2, 3... 13把钥匙。奇怪，怎么数来数去又少了一把？”";
+      } else if (sceneId === 'corridor') {
+        avatar.innerHTML = `<img src="figure/hollow-wick.png" alt="空芯" class="npc-mini-img">`;
+        name.innerText = "空芯";
+        title.innerText = "THE HOLLOW WICKS";
+        quote.innerText = "“没浸过蜡的未竟之事，化为无脸影子伫立在走廊。”";
+      } else if (sceneId === 'clock') {
+        avatar.innerHTML = `<img src="figure/seventh-toll.png" alt="第七下" class="npc-mini-img">`;
+        name.innerText = "第七下钟声";
+        title.innerText = "THE SEVENTH TOLL";
+        quote.innerText = "“铛…… 铛…… 铛…… 敲到第七下时戛然而止。”";
+      } else if (sceneId === 'seance') {
+        avatar.innerHTML = `<img src="figure/miss-silverfox.png" alt="银狐小姐" class="npc-mini-img">`;
+        name.innerText = "降灵仪式";
+        title.innerText = "SEANCE PARLOR";
+        quote.innerText = "“倾听并回应湖底居民的低语。”";
+      } else {
+        avatar.innerHTML = `<img src="figure/miss-silverfox.png" alt="银狐小姐" class="npc-mini-img">`;
+        name.innerText = "星芒日记";
+        title.innerText = "STARFALL LEDGER";
+        quote.innerText = "“记载着过去被蜡液封存的记忆章回。”";
+      }
+    }
+
+    function renderInteractiveStage(sceneId) {
+      const stage = document.getElementById('interactiveStage');
+      const sceneTitle = document.getElementById('sceneTitle');
+      const dialogueText = document.getElementById('dialogueText');
+      const speakerName = document.getElementById('speakerName');
+
+      const scenes = {
+        checkin: {
+          title: 'SCENE 1: FRONT DESK — MR. BREATH-HOLD', icon: 'fa-crow',
+          speaker: '屏息先生 (Mr. Breath-Hold)', image: 'figure/mr-breathhold.png', alt: '屏息先生苍鹭全身立绘',
+          portraitClass: '', accent: 'border-brass-500/60 text-amber-200', action: "talkToNpc('checkin')",
+          hint: '点击与屏息先生交谈',
+          dialogue: '苍鹭头主人静立在前厅老木桌后。将每日打卡纸条递给他，他会无声咽入腹中。'
+        },
+        crucible: {
+          title: "SCENE 2: GREYWING'S CRUCIBLE", icon: 'fa-bug',
+          speaker: '灰翅夫人 (Madame Greywing)', image: 'figure/madame-greywing.png', alt: '灰翅夫人巨蛾全身立绘',
+          portraitClass: 'wide moth', accent: 'border-rust-400/60 text-amber-200', action: "talkToNpc('crucible')",
+          hint: '点击与灰翅夫人交谈',
+          dialogue: '巨蛾头熬蜡人立于铜锅旁。烧穿的眼窝里余火未灭，金色记忆从铜勺边缘缓慢滴落。'
+        },
+        pantry: {
+          title: "SCENE 3: CALVIN'S KEY PANTRY", icon: 'fa-key',
+          speaker: '卡尔文 (Calvin)', image: 'figure/calvin.png', alt: '獾头管家卡尔文全身立绘',
+          portraitClass: 'keys', accent: 'border-brass-500/60 text-amber-200', action: "talkToNpc('pantry')",
+          hint: '点击与卡尔文交谈',
+          dialogue: '卡尔文捧着钥匙环一遍遍清点：“十三把……不，为什么又多了一把？”'
+        },
+        corridor: {
+          title: 'SCENE 4: HOLLOW WICKS CORRIDOR', icon: 'fa-ghost',
+          speaker: '空芯 (The Hollow Wicks)', image: 'figure/hollow-wick.png', alt: '无脸空芯全身立绘',
+          portraitClass: 'hollow', accent: 'border-purple-500/60 text-purple-300', action: "talkToNpc('corridor')",
+          hint: '点击听取未竟之事的低语',
+          dialogue: '没浸过蜡的未竟之事伫立在幽暗走廊尽头。每个影子都保留着一小截从未点燃的白芯。'
+        },
+        clock: {
+          title: 'SCENE 5: SUNKEN GRANDFATHER CLOCK', icon: 'fa-stopwatch',
+          speaker: '第七下 (The Seventh Toll)', image: 'figure/seventh-toll.png', alt: '半沉湖水的第七下古钟',
+          portraitClass: 'clock', accent: 'border-brass-500/60 text-amber-200', action: 'triggerClockToll()',
+          hint: '点击触碰古钟敲响', water: true,
+          dialogue: '老式摆钟半沉在死寂湖水里。六下钟声过后，玻璃后的手掌会替缺失的第七下贴近你。'
+        },
+        diary: {
+          title: 'SCENE 6: STARFALL LEDGER', icon: 'fa-book-bookmark',
+          speaker: '银狐小姐与星芒日记', image: 'figure/miss-silverfox.png', alt: '银狐小姐怀抱星芒日记',
+          portraitClass: '', accent: 'border-brass-500/60 text-amber-200', action: "openModal('foxModal')",
+          hint: '点击查看第十三位住客档案',
+          dialogue: '银狐小姐抱紧星芒日记。那些被黑墨划去的日子，正沿着封皮重新长出金色星轨。'
+        },
+        seance: {
+          title: 'SCENE 7: SEANCE PARLOR — AI DIALOGUE', icon: 'fa-eye',
+          speaker: '守夜降灵会 (Séance Parlor)', image: 'figure/miss-silverfox.png', alt: '主持降灵会的银狐小姐',
+          portraitClass: '', accent: 'border-emerald-500/60 text-emerald-300', action: '',
+          hint: '在下方选择一位住客开始交谈',
+          dialogue: '银狐小姐将黄铜钥匙放在桌面中央。茶室烛火向湖的方向倾斜，某位住客正在等待被唤醒。'
+        }
+      };
+
+      const scene = scenes[sceneId] || scenes.checkin;
+      sceneTitle.innerText = scene.title;
+      speakerName.innerHTML = `<i class="fa-solid ${scene.icon} mr-1"></i> ${scene.speaker}`;
+      setDialogueText(scene.dialogue);
+
+      const waterEffects = scene.water ? `
+        <div class="waterline"></div>
+        <span class="stage-bubble" style="left:30%;animation-delay:.2s"></span>
+        <span class="stage-bubble" style="left:68%;animation-delay:1.5s;width:9px;height:9px"></span>
+        <span class="stage-bubble" style="left:73%;animation-delay:2.8s"></span>` : '';
+      const clickAttr = scene.action ? `onclick="${scene.action}"` : '';
+
+      stage.innerHTML = `
+        <div class="scene-enter relative w-full h-full min-h-[280px] flex items-center justify-center ${scene.action ? 'cursor-pointer' : ''} group" ${clickAttr}>
+          <div class="stage-floor"></div>
+          <div class="stage-glow"></div>
+          ${waterEffects}
+          <img src="${scene.image}" alt="${scene.alt}" class="character-portrait ${scene.portraitClass} relative z-[2]" />
+          <div class="absolute z-10 top-2 right-2 sm:right-4 bg-stone-950/90 ${scene.accent} border text-[10px] px-2 py-1 rounded shadow backdrop-blur-sm transition group-hover:-translate-y-0.5">
+            <i class="fa-solid fa-hand-pointer mr-1"></i> ${scene.hint}
+          </div>
+        </div>`;
+      return;
+
+      if (sceneId === 'checkin') {
+        sceneTitle.innerText = "SCENE 1: FRONT DESK — MR. BREATH-HOLD";
+        speakerName.innerHTML = `<i class="fa-solid fa-crow mr-1"></i> 屏息先生 (Mr. Breath-Hold)`;
+        setDialogueText("苍鹭头主人静静坐在前厅老木桌后。将每日的打卡纸条递给他，他会咽入腹中。");
+
+        stage.innerHTML = `
+          <div class="relative w-full h-full flex items-center justify-center cursor-pointer group" onclick="talkToNpc('checkin')">
+            <svg class="w-64 h-64 drop-shadow-2xl" viewBox="0 0 200 200">
+              <rect x="20" y="130" width="160" height="50" fill="#2b1f15" stroke="#100b07" stroke-width="3"/>
+              <rect x="25" y="135" width="150" height="6" fill="#4a3821"/>
+              <rect x="40" y="125" width="35" height="10" fill="#d8c8b0" stroke="#100b07" stroke-width="2"/>
+              <path d="M100,50 C80,50 70,80 70,110 L130,110 C130,80 120,50 100,50 Z" fill="#1c1f26" stroke="#000" stroke-width="3"/>
+              <polygon points="100,80 160,88 100,95" fill="#c99e32" stroke="#000" stroke-width="2"/>
+              <circle cx="90" cy="72" r="5" fill="#f0d375" stroke="#000" stroke-width="2"/>
+              <circle cx="89" cy="72" r="2" fill="#000"/>
+              <path d="M70,110 L130,110 L140,140 L60,140 Z" fill="#0d1117" stroke="#000" stroke-width="3"/>
+              <polygon points="100,110 90,135 110,135" fill="#ffffff"/>
+            </svg>
+            <div class="absolute top-2 right-4 bg-stone-900/90 text-amber-200 border border-brass-500/60 text-[10px] px-2 py-1 rounded shadow">
+              <i class="fa-solid fa-hand-pointer mr-1"></i> 点击与屏息先生交谈
+            </div>
+          </div>
+        `;
+      } else if (sceneId === 'crucible') {
+        sceneTitle.innerText = "SCENE 2: GREYWING'S CRUCIBLE";
+        speakerName.innerHTML = `<i class="fa-solid fa-bug mr-1"></i> 灰翅夫人 (Madame Greywing)`;
+        setDialogueText("巨蛾头熬蜡人立于铜锅旁。眼睛是烧穿的黑洞，锅中翻滚着黏稠的金色记忆蜡液。");
+
+        stage.innerHTML = `
+          <div class="relative w-full h-full flex items-center justify-center cursor-pointer group" onclick="talkToNpc('crucible')">
+            <svg class="w-64 h-64 drop-shadow-2xl" viewBox="0 0 200 200">
+              <path d="M80,80 Q90,60 85,40" fill="none" stroke="#f0d375" stroke-width="2" class="animate-steam-rise"/>
+              <path d="M120,80 Q110,60 115,40" fill="none" stroke="#f0d375" stroke-width="2" class="animate-steam-rise" style="animation-delay: 1s;"/>
+              <ellipse cx="100" cy="120" rx="50" ry="15" fill="#a63d24" stroke="#000" stroke-width="3"/>
+              <path d="M50,120 Q50,170 100,170 Q150,170 150,120 Z" fill="#3a1c12" stroke="#000" stroke-width="3"/>
+              <ellipse cx="100" cy="122" rx="42" ry="10" fill="#c99e32" class="animate-bubble"/>
+              <circle cx="100" cy="55" r="22" fill="#2b221a" stroke="#000" stroke-width="3"/>
+              <path d="M90,38 Q70,15 60,25" fill="none" stroke="#1a140e" stroke-width="3"/>
+              <path d="M110,38 Q130,15 140,25" fill="none" stroke="#1a140e" stroke-width="3"/>
+              <circle cx="91" cy="55" r="6" fill="#000" stroke="#5c1e10" stroke-width="2"/>
+              <circle cx="109" cy="55" r="6" fill="#000" stroke="#5c1e10" stroke-width="2"/>
+            </svg>
+            <div class="absolute top-2 right-4 bg-stone-900/90 text-amber-200 border border-rust-400/60 text-[10px] px-2 py-1 rounded shadow">
+              <i class="fa-solid fa-hand-pointer mr-1"></i> 点击与灰翅夫人交谈
+            </div>
+          </div>
+        `;
+      } else if (sceneId === 'pantry') {
+        sceneTitle.innerText = "SCENE 3: CALVIN'S KEY PANTRY";
+        speakerName.innerHTML = `<i class="fa-solid fa-key mr-1"></i> 卡尔文 (Calvin)`;
+        setDialogueText("獾头管家挂着钥匙环，焦躁地围着钥匙架踱步：“13把钥匙……不，怎么多了一把？”");
+
+        stage.innerHTML = `
+          <div class="relative w-full h-full flex items-center justify-center cursor-pointer group" onclick="talkToNpc('pantry')">
+            <svg class="w-64 h-64 drop-shadow-2xl" viewBox="0 0 200 200">
+              <rect x="30" y="30" width="140" height="90" fill="#2b1f15" stroke="#100b07" stroke-width="3"/>
+              <circle cx="60" cy="50" r="4" fill="#c99e32"/>
+              <circle cx="100" cy="50" r="4" fill="#c99e32"/>
+              <circle cx="140" cy="50" r="4" fill="#c99e32"/>
+              <path d="M75,130 Q100,100 125,130 L125,180 L75,180 Z" fill="#2b221a" stroke="#000" stroke-width="3"/>
+              <path d="M90,110 L100,135 L110,110 Z" fill="#ffffff"/>
+              <circle cx="88" cy="125" r="3" fill="#000"/>
+              <circle cx="112" cy="125" r="3" fill="#000"/>
+            </svg>
+            <div class="absolute top-2 right-4 bg-stone-900/90 text-amber-200 border border-brass-500/60 text-[10px] px-2 py-1 rounded shadow">
+              <i class="fa-solid fa-hand-pointer mr-1"></i> 点击与卡尔文交谈
+            </div>
+          </div>
+        `;
+      } else if (sceneId === 'corridor') {
+        sceneTitle.innerText = "SCENE 4: HOLLOW WICKS CORRIDOR";
+        speakerName.innerHTML = `<i class="fa-solid fa-ghost mr-1"></i> 空芯 (The Hollow Wicks)`;
+        setDialogueText("没浸过蜡的未竟之事伫立在幽暗走廊尽头。每个影子代表一项未完成的打卡任务。");
+
+        stage.innerHTML = `
+          <div class="relative w-full h-full flex items-center justify-center cursor-pointer group" onclick="talkToNpc('corridor')">
+            <svg class="w-64 h-64 drop-shadow-2xl" viewBox="0 0 200 200">
+              <polygon points="0,0 200,0 140,80 60,80" fill="#141110"/>
+              <polygon points="0,200 200,200 140,120 60,120" fill="#0a0807"/>
+              <rect x="60" y="80" width="80" height="40" fill="#050403" stroke="#2b1f15"/>
+              <path d="M85,90 Q90,75 95,90 L95,115 L85,115 Z" fill="#3a1c40" opacity="0.8" class="animate-float-slow"/>
+              <path d="M105,88 Q110,72 115,88 L115,115 L105,115 Z" fill="#2a1030" opacity="0.8" class="animate-float-slow" style="animation-delay:1.5s;"/>
+            </svg>
+            <div class="absolute top-2 right-4 bg-stone-900/90 text-purple-300 border border-purple-500/60 text-[10px] px-2 py-1 rounded shadow">
+              <i class="fa-solid fa-hand-pointer mr-1"></i> 点击听取未竟之事的低语
+            </div>
+          </div>
+        `;
+      } else if (sceneId === 'clock') {
+        sceneTitle.innerText = "SCENE 5: SUNKEN GRANDFATHER CLOCK";
+        speakerName.innerHTML = `<i class="fa-solid fa-stopwatch mr-1"></i> 第七下 (The Seventh Toll)`;
+        setDialogueText("老式摆钟半沉在沉寂的湖水中。摆锤摇晃（铛……铛……），第七下响声永远缺席。");
+
+        stage.innerHTML = `
+          <div class="relative w-full h-full flex items-center justify-center cursor-pointer group" onclick="triggerClockToll()">
+            <svg class="w-64 h-64 drop-shadow-2xl" viewBox="0 0 200 200">
+              <rect x="0" y="140" width="200" height="60" fill="#0d1520" opacity="0.9"/>
+              <rect x="70" y="30" width="60" height="130" fill="#2b1f15" stroke="#000" stroke-width="3"/>
+              <circle cx="100" cy="60" r="20" fill="#d8c8b0" stroke="#000" stroke-width="2"/>
+              <line x1="100" y1="60" x2="100" y2="48" stroke="#000" stroke-width="3"/>
+              <line x1="100" y1="60" x2="112" y2="60" stroke="#000" stroke-width="2"/>
+              <g class="animate-pendulum" style="transform-origin: 100px 80px;">
+                <line x1="100" y1="80" x2="100" y2="120" stroke="#c99e32" stroke-width="3"/>
+                <circle cx="100" cy="125" r="8" fill="#c99e32"/>
+              </g>
+            </svg>
+            <div class="absolute top-2 right-4 bg-stone-900/90 text-amber-200 border border-brass-500/60 text-[10px] px-2 py-1 rounded shadow">
+              <i class="fa-solid fa-hand-pointer mr-1"></i> 点击触碰古钟敲响
+            </div>
+          </div>
+        `;
+      } else if (sceneId === 'seance') {
+        sceneTitle.innerText = "SCENE 7: SEANCE PARLOR — AI DIALOGUE";
+        speakerName.innerHTML = `<i class="fa-solid fa-eye mr-1"></i> 降灵茶室 (Séance Parlor)`;
+        setDialogueText("茶室的水晶球微弱亮起。选择住客开启多轮 AI 对话。");
+
+        stage.innerHTML = `
+          <div class="relative w-full h-full flex items-center justify-center">
+            <svg class="w-64 h-64 drop-shadow-2xl" viewBox="0 0 200 200">
+              <circle cx="100" cy="100" r="35" fill="#102518" stroke="#34d399" stroke-width="3" class="animate-flicker"/>
+              <ellipse cx="100" cy="140" rx="45" ry="12" fill="#1f1813" stroke="#4a3821" stroke-width="2"/>
+            </svg>
+          </div>
+        `;
+      } else {
+        sceneTitle.innerText = "SCENE 6: STARFALL LEDGER";
+        speakerName.innerHTML = `<i class="fa-solid fa-book-bookmark mr-1"></i> 星芒皮质日记本`;
+        setDialogueText("案头铺着星芒图案的日记册，封皮凝结着冷蜡的余香。支持完全擦除与修改。");
+
+        stage.innerHTML = `
+          <div class="relative w-full h-full flex items-center justify-center">
+            <svg class="w-64 h-64 drop-shadow-2xl" viewBox="0 0 200 200">
+              <rect x="30" y="40" width="140" height="120" fill="#1f1813" stroke="#4a3821" stroke-width="4" rx="4"/>
+              <line x1="100" y1="40" x2="100" y2="160" stroke="#000" stroke-width="3"/>
+              <polygon points="100,80 103,90 113,90 105,96 108,106 100,100 92,106 95,96 87,90 97,90" fill="#c99e32"/>
+            </svg>
+          </div>
+        `;
+      }
+    }
+
+    function setDialogueText(text) {
+      state.currentDialogueText = text;
+      document.getElementById('dialogueText').innerText = text;
+    }
+
+    function speakCurrentDialogue() {
+      if (!state.currentDialogueText) return;
+      let voice = 'Zephyr';
+      if (state.activeScene === 'checkin') voice = 'Charon';
+      else if (state.activeScene === 'crucible') voice = 'Kore';
+      else if (state.activeScene === 'pantry') voice = 'Puck';
+      else if (state.activeScene === 'corridor') voice = 'Fenrir';
+      
+      generateGeminiTTS(state.currentDialogueText, voice);
+    }
+
+
+    async function talkToNpc(npcId) {
+      setDialogueText("... (正在倾听大模型回答) ...");
+
+      let sysPrompt = "";
+      let userPrompt = "";
+      let voice = "Zephyr";
+
+      if (npcId === 'checkin') {
+        sysPrompt = "你扮演《噤湖·守夜旅舍》的屏息先生 (Mr. Breath-Hold)。苍鹭头旅舍主人，几乎不说话，喉头起伏，把写着任务的纸吞进肚子里。请用简短的1-2句具有诡异解谜氛围的动作描写与冷淡话语回答。";
+        userPrompt = "银狐小姐走向前厅登记者桌，递出今日打卡纸条。";
+        voice = "Charon";
+      } else if (npcId === 'crucible') {
+        sysPrompt = "你扮演《噤湖·守夜旅舍》的灰翅夫人 (Madame Greywing)。巨蛾头熬蜡人，眼睛是烧穿的洞。你语气优雅诡异，常说‘完成的事比较甜’。用1-2句话回复。";
+        userPrompt = "银狐小姐看着翻滚的铜锅问今夜熬蜡的纯度。";
+        voice = "Kore";
+      } else if (npcId === 'pantry') {
+        sysPrompt = "你扮演《噤湖·守夜旅舍》的獾头管家卡尔文 (Calvin)。腰间挂着13把钥匙，但总觉得数错了一把。语气困惑、忠诚、古怪。1-2句话。";
+        userPrompt = "银狐小姐问起锁箱的第13把黄铜钥匙。";
+        voice = "Puck";
+      } else if (npcId === 'corridor') {
+        const incomplete = state.tasks.filter(t => !t.completed).map(t => t.title).join(', ');
+        sysPrompt = "你扮演《噤湖·守夜旅舍》走廊尽头没浸过蜡的空芯 (The Hollow Wicks)。你是未竟之事的影子。语气虚无、令人毛骨悚然。1-2短句。";
+        userPrompt = `银狐小姐走近影子。当前未完成的事有：${incomplete || '无'}。请发出低语。`;
+        voice = "Fenrir";
+      }
+
+      try {
+        const reply = await callGeminiAPI(sysPrompt, userPrompt);
+        setDialogueText(reply);
+        generateGeminiTTS(reply, voice);
+      } catch (err) {
+        if (npcId === 'checkin') setDialogueText("“……” (屏息先生静静地注视着你，喉头咽下一张硬纸片。)");
+        else if (npcId === 'crucible') setDialogueText("“完成的事比较甜…… 把记忆放进来吧。”");
+        else if (npcId === 'pantry') setDialogueText("“1, 2, 3... 13把钥匙。奇怪，好像又多了一把。”");
+        else setDialogueText("“没被浸蜡的纸条，终究只是一缕影子……”");
+      }
+    }
+
+    /* AI Lore Refinement (Wand Sparkles) */
+    async function aiTranslateTaskTitle() {
+      const input = document.getElementById('taskTitleInput');
+      const text = input.value.trim();
+      if (!text) return alert("请先输入简单的任务名称");
+
+      const sys = "你将用户的现实打卡任务，翻译成符合《锈湖》(Rusty Lake) 黑暗解谜风格的契约短句。15字以内。只返回简短短句，无多余字词。";
+      try {
+        const result = await callGeminiAPI(sys, `现实任务：${text}`);
+        input.value = result.trim().replace(/^["'“]/, '').replace(/["'”]$/, '');
+      } catch (e) {
+        alert("Gemini 转换失败，请检查 API Key");
+      }
+    }
+
+    async function aiTranslateGoalTitle() {
+      const input = document.getElementById('goalTitleInput');
+      const text = input.value.trim();
+      if (!text) return alert("请先输入简单的目标名称");
+
+      const sys = "你将用户的现实长期目标，翻译成符合《锈湖》(Rusty Lake) 沉湖锁箱誓约风格的暗黑契约短句。15字以内。只返回短句。";
+      try {
+        const result = await callGeminiAPI(sys, `长期目标：${text}`);
+        input.value = result.trim().replace(/^["'“]/, '').replace(/["'”]$/, '');
+      } catch (e) {
+        alert("Gemini 转换失败，请检查 API Key");
+      }
+    }
+
+    /* Structured JSON Soul Purity Assessment */
+    async function assessSoulPurity() {
+      const reportBox = document.getElementById('soulReportContainer');
+      const textEl = document.getElementById('soulAnalysisText');
+      const badgeEl = document.getElementById('soulPurityBadge');
+      const secretEl = document.getElementById('soulSecretText');
+
+      reportBox.classList.remove('hidden');
+      textEl.innerText = "灰翅夫人正在翻看铜锅与账目，考炼你的灵魂纯度...";
+
+      const completed = state.tasks.filter(t => t.completed).map(t => t.title);
+      const incomplete = state.tasks.filter(t => !t.completed).map(t => t.title);
+
+      const jsonSchema = {
+        type: "OBJECT",
+        properties: {
+          purityScore: { type: "INTEGER" },
+          analysis: { type: "STRING" },
+          unlockedSecret: { type: "STRING" }
+        },
+        propertyOrdering: ["purityScore", "analysis", "unlockedSecret"]
+      };
+
+      const sys = "你扮演《噤湖·守夜旅舍》的灰翅夫人。请对银狐小姐今天的记忆状态进行结构化考炼鉴定。输出 JSON。";
+      const user = `已完成事件：${completed.join(', ') || '无'}。未完成事件：${incomplete.join(', ') || '无'}。`;
+
+      try {
+        const jsonStr = await callGeminiAPI(sys, user, jsonSchema);
+        const data = JSON.parse(jsonStr);
+
+        badgeEl.innerText = `${data.purityScore || 50}% Pure`;
+        textEl.innerText = data.analysis || "记忆在熔蜡中泛起涟漪。";
+        secretEl.innerText = data.unlockedSecret || "第13号锁箱的齿轮轻轻咬合了一齿。";
+      } catch (e) {
+        textEl.innerText = "铜锅微沸。完成了的事比较甜，未做的事终化为阴影。";
+        badgeEl.innerText = "50% Pure";
+        secretEl.innerText = "湖水之下，古钟仍在沉寂。";
+      }
+    }
+
+    /* Perform Wax Melting with Story & Imagen Support */
+    async function performWaxMelting() {
+      const btn = document.getElementById('btnMeltWax');
+      const textOutput = document.getElementById('outputDiaryText');
+      const dateOutput = document.getElementById('outputDiaryDate');
+      const reflection = document.getElementById('reflectionInput').value.trim();
+
+      const completed = state.tasks.filter(t => t.completed).map(t => t.title);
+      const incomplete = state.tasks.filter(t => !t.completed).map(t => t.title);
+
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> 灰翅夫人正在熬煮记忆...`;
+
+      const bubbleInterval = setInterval(() => playSound('bubble'), 250);
+
+      const sysPrompt = `你扮演《噤湖·守夜旅舍》的灰翅夫人。请分析银狐小姐今日完成的事与未完成的事，结合她的感悟，为她生成一段锈湖隐喻风格的日记文章。字数100-160字。`;
+      const userPrompt = `今日完成的事(已浸蜡): ${completed.join(', ') || '无'}。未完成的事(留下的空芯): ${incomplete.join(', ') || '无'}。感悟: "${reflection || '夜沉如水。'}"`;
+
+      try {
+        const story = await callGeminiAPI(sysPrompt, userPrompt);
+        clearInterval(bubbleInterval);
+
+        state.lastGeneratedDiaryText = story;
+
+        const newEntry = {
+          id: 'd-' + Date.now(),
+          date: new Date().toISOString().split('T')[0],
+          text: story,
+          imgUrl: ''
+        };
+
+        state.diaries.unshift(newEntry);
+
+        state.goals.forEach(g => {
+          if (g.current < g.target) g.current += 1;
+        });
+
+        saveState();
+        renderAll();
+
+        dateOutput.innerText = newEntry.date;
+        textOutput.innerText = story;
+
+        document.getElementById('btnGenerateDiaryImg').classList.remove('hidden');
+
+      } catch (err) {
+        clearInterval(bubbleInterval);
+        const fallback = `今夜铜锅翻滚着滚烫的微光。灰翅夫人低声喃喃：“完成的事比较甜……” 完成的 ${completed.length} 件记忆凝固成蜡，未竟之事则凝结为长廊的影子。`;
+        textOutput.innerText = fallback;
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-fire"></i> 放入铜锅，熬炼记忆日记`;
+      }
+    }
+
+    /* Imagen Illustration for newly generated diary */
+    async function generateDiaryImageForLatest() {
+      const btn = document.getElementById('btnGenerateDiaryImg');
+      const imgContainer = document.getElementById('outputDiaryImgContainer');
+      const imgEl = document.getElementById('outputDiaryImg');
+
+      if (!state.lastGeneratedDiaryText) return;
+
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Imagen 正在凝结图像...`;
+
+      try {
+        const imgUrl = await generateImagenImage(state.lastGeneratedDiaryText);
+        if (imgUrl) {
+          imgEl.src = imgUrl;
+          imgContainer.classList.remove('hidden');
+          if (state.diaries.length > 0) {
+            state.diaries[0].imgUrl = imgUrl;
+            saveState();
+            renderDiaryArchive();
+          }
+        }
+      } catch (e) {
+        alert("Imagen 图片生成失败，请检查 API Key");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-palette text-amber-400"></i> 使用 Imagen 凝结记忆图景`;
+      }
+    }
+
+    async function triggerClockToll() {
+      playSound('clockToll');
+      const clockPortrait = document.querySelector('.character-portrait.clock');
+      if (clockPortrait) {
+        clockPortrait.classList.add('tolling');
+        setTimeout(() => clockPortrait.classList.remove('tolling'), 1100);
+      }
+
+      const prophecyOutput = document.getElementById('prophecyOutput');
+      const prophecyText = document.getElementById('prophecyText');
+      const prophecyTime = document.getElementById('prophecyTime');
+
+      prophecyOutput.classList.remove('hidden');
+      prophecyTime.innerText = new Date().toLocaleTimeString();
+      prophecyText.innerText = "铛…… 铛…… 铛…… 钟声响了六下，第七下戛然而止。水面浮现涟漪...";
+
+      const goalsStr = state.goals.map(g => g.title).join(', ');
+
+      const sysPrompt = `你扮演《噤湖·守夜旅舍》缺席的“第七下钟声”。当钟声戛然而止时，给第13位住客银狐小姐关于她近期誓约的断章命运预言。60-90字，带有古老摆钟与湖水涟漪感。`;
+      const userPrompt = `当前的誓约目标为：${goalsStr || '未立誓约'}。请说出预言。`;
+
+      try {
+        const prophecy = await callGeminiAPI(sysPrompt, userPrompt);
+        prophecyText.innerText = prophecy;
+        generateGeminiTTS(prophecy, 'Zephyr');
+      } catch (err) {
+        prophecyText.innerText = "当第七下钟声在湖底重响时，第13号黄铜锁箱将自动解开。在此之前，只需注视着水下的齿轮。";
+      }
+    }
+
+    /* Multi-turn Séance Chat Room */
+    async function sendSeanceMessage() {
+      const input = document.getElementById('seanceInput');
+      const chatBox = document.getElementById('seanceChatBox');
+      const npcSelect = document.getElementById('seanceNpcSelect');
+      const btn = document.getElementById('btnSendSeance');
+
+      const msg = input.value.trim();
+      if (!msg) return;
+
+      input.value = '';
+      const npc = npcSelect.value;
+
+      // Render user message
+      chatBox.innerHTML += `
+        <div class="text-right">
+          <div class="inline-block bg-stone-900 border border-stone-800 text-amber-200 px-3 py-1.5 rounded text-left">
+            <strong>银狐小姐:</strong> ${escapeHtml(msg)}
+          </div>
+        </div>
+      `;
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      btn.disabled = true;
+
+      let sys = "你扮演《噤湖·守夜旅舍》的住客。语气充满锈湖特有的暗黑、荒诞、哲理风格。回复在80字以内。";
+      let voice = "Zephyr";
+
+      if (npc === 'checkin') { sys = "你扮演屏息先生。声音喑哑，很少开口，把纸咽进腹中。"; voice = "Charon"; }
+      else if (npc === 'crucible') { sys = "你扮演灰翅夫人。优雅诡谲，“完成的事比较甜”。"; voice = "Kore"; }
+      else if (npc === 'pantry') { sys = "你扮演卡尔文。数钥匙的困惑管家。"; voice = "Puck"; }
+      else if (npc === 'clock') { sys = "你扮演缺席的第七下钟声。神秘预言者。"; voice = "Zephyr"; }
+
+      try {
+        const reply = await callGeminiAPI(sys, msg);
+        chatBox.innerHTML += `
+          <div class="text-left">
+            <div class="inline-block bg-emerald-950/60 border border-emerald-800/80 text-emerald-100 px-3 py-1.5 rounded">
+              <strong>${npcSelect.options[npcSelect.selectedIndex].text}:</strong> ${escapeHtml(reply)}
+            </div>
+          </div>
+        `;
+        chatBox.scrollTop = chatBox.scrollHeight;
+        generateGeminiTTS(reply, voice);
+      } catch (e) {
+        chatBox.innerHTML += `<div class="text-xs text-rust-400 italic">住客在低语中隐匿了声音...</div>`;
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function resetSeanceChat() {
+      document.getElementById('seanceChatBox').innerHTML = `<div class="text-stone-500 italic text-center text-[11px]">茶室的烛火正在微微摇晃，请在下方挑起话题...</div>`;
+    }
+
+
+    function renderAll() {
+      renderTasks();
+      renderGoals();
+      renderCrucibleChecklist();
+      renderHollowWicks();
+      renderDiaryArchive();
+      updateBadges();
+    }
+
+    function updateBadges() {
+      document.getElementById('badgeTaskCount').innerText = state.tasks.length;
+      document.getElementById('badgeGoalCount').innerText = state.goals.length;
+      const incomplete = state.tasks.filter(t => !t.completed).length;
+      document.getElementById('badgeHollowCount').innerText = incomplete;
+      document.getElementById('badgeDiaryCount').innerText = state.diaries.length;
+    }
+
+    function renderTasks() {
+      const container = document.getElementById('taskListContainer');
+      if (state.tasks.length === 0) {
+        container.innerHTML = `<div class="text-center py-6 text-stone-500 text-xs italic">空无一物。点击“新增打卡纸条”写入凭证。</div>`;
+        return;
+      }
+
+      container.innerHTML = state.tasks.map(t => {
+        const linkedGoal = state.goals.find(g => g.id === t.goalId);
+        return `
+          <div class="p-3 rounded border ${t.completed ? 'border-stone-800 bg-stone-950/40 opacity-75' : 'border-stone-800 bg-stone-900'} flex items-center justify-between gap-2 group">
+            <div class="flex items-start gap-2.5 flex-1 min-w-0">
+              <input type="checkbox" ${t.completed ? 'checked' : ''} onchange="toggleTask('${t.id}')" class="mt-1 accent-rust-600 cursor-pointer w-4 h-4" />
+              <div class="min-w-0 flex-1">
+                <h4 class="text-xs font-bold ${t.completed ? 'line-through text-stone-500' : 'text-amber-100'} truncate">${escapeHtml(t.title)}</h4>
+                ${t.desc ? `<p class="text-[11px] text-stone-400 mt-0.5">${escapeHtml(t.desc)}</p>` : ''}
+                ${linkedGoal ? `<span class="inline-block mt-1 text-[10px] px-1.5 py-0.2 rounded bg-brass-700/20 text-brass-300 border border-brass-700/40"><i class="fa-solid fa-link mr-1"></i>${escapeHtml(linkedGoal.title)}</span>` : ''}
+              </div>
+            </div>
+            <div class="flex items-center gap-1 opacity-75 group-hover:opacity-100">
+              <button onclick="openEditTaskModal('${t.id}')" class="p-1 text-stone-400 hover:text-brass-300 text-xs"><i class="fa-solid fa-pen"></i></button>
+              <button onclick="swallowDeleteTask('${t.id}')" class="p-1 text-stone-400 hover:text-rust-400 text-xs" title="让屏息先生吞掉(删除)"><i class="fa-solid fa-drumstick-bite"></i></button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderGoals() {
+      const container = document.getElementById('goalListContainer');
+      if (state.goals.length === 0) {
+        container.innerHTML = `<div class="text-center py-6 text-stone-500 text-xs italic">沉寂的湖底没有锁箱。点击“铭刻新誓约”写入近期 Goal。</div>`;
+        return;
+      }
+
+      container.innerHTML = state.goals.map(g => {
+        const pct = Math.min(100, Math.round((g.current / g.target) * 100));
+        return `
+          <div class="p-3.5 rounded border border-brass-700/50 bg-stone-950 space-y-2">
+            <div class="flex items-start justify-between gap-2 border-b border-stone-800 pb-1.5">
+              <div>
+                <h3 class="text-xs font-bold text-brass-300 flex items-center gap-1.5"><i class="fa-solid fa-box text-brass-500"></i> ${escapeHtml(g.title)}</h3>
+                <p class="text-[11px] text-stone-400 mt-0.5">${escapeHtml(g.desc || '')}</p>
+              </div>
+              <div class="flex items-center gap-1">
+                <button onclick="openEditGoalModal('${g.id}')" class="p-1 text-stone-400 hover:text-brass-300 text-xs"><i class="fa-solid fa-pen"></i></button>
+                <button onclick="deleteGoal('${g.id}')" class="p-1 text-stone-400 hover:text-rust-400 text-xs"><i class="fa-solid fa-trash"></i></button>
+              </div>
+            </div>
+            <div class="space-y-1">
+              <div class="flex justify-between text-[10px] font-mono text-brass-400">
+                <span>解密进度: ${g.current} / ${g.target} 次熔蜡</span>
+                <span>${pct}%</span>
+              </div>
+              <div class="w-full h-2 bg-stone-900 rounded border border-brass-700/40 overflow-hidden">
+                <div class="h-full bg-brass-500 rounded transition-all duration-500" style="width: ${pct}%"></div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderCrucibleChecklist() {
+      const container = document.getElementById('crucibleChecklist');
+      if (state.tasks.length === 0) {
+        container.innerHTML = `<p class="text-xs text-stone-500">今日无打卡凭证。</p>`;
+        return;
+      }
+
+      container.innerHTML = state.tasks.map(t => `
+        <label class="flex items-center space-x-2 text-xs text-amber-200 p-2 rounded bg-stone-900 border border-stone-800 cursor-pointer">
+          <input type="checkbox" ${t.completed ? 'checked' : ''} onchange="toggleTask('${t.id}')" class="accent-rust-600" />
+          <span class="${t.completed ? 'line-through text-stone-500' : ''}">${escapeHtml(t.title)}</span>
+        </label>
+      `).join('');
+    }
+
+    function renderHollowWicks() {
+      const container = document.getElementById('hollowWicksList');
+      const incomplete = state.tasks.filter(t => !t.completed);
+
+      if (incomplete.length === 0) {
+        container.innerHTML = `<div class="col-span-full text-center py-6 text-stone-500 text-xs">走廊尽头一片清明，没有未浸蜡的空芯身影。</div>`;
+        return;
+      }
+
+      container.innerHTML = incomplete.map(t => `
+        <div onclick="talkToNpc('corridor')" class="p-2.5 rounded bg-stone-900 border border-purple-900/60 flex flex-col items-center cursor-pointer hover:border-purple-500 transition">
+          <div class="w-6 h-12 rounded-t-full bg-purple-950 border-t border-purple-400/40 flex items-center justify-center">
+            <i class="fa-solid fa-ghost text-purple-400/60 text-xs"></i>
+          </div>
+          <span class="text-[10px] text-purple-300 mt-1 max-w-full truncate text-center">${escapeHtml(t.title)}</span>
+        </div>
+      `).join('');
+    }
+
+    function renderDiaryArchive() {
+      const container = document.getElementById('diaryArchiveContainer');
+      if (state.diaries.length === 0) {
+        container.innerHTML = `<div class="text-center py-6 text-stone-500 text-xs">星芒日记尚未烙下记忆。</div>`;
+        return;
+      }
+
+      container.innerHTML = state.diaries.map(d => `
+        <div class="p-3.5 rounded border border-stone-800 bg-stone-950 space-y-2 relative">
+          <div class="flex items-center justify-between border-b border-stone-800 pb-1 text-xs">
+            <span class="font-cinzel text-brass-400 font-bold"><i class="fa-solid fa-feather mr-1"></i> ${d.date}</span>
+            <button onclick="deleteDiary('${d.id}')" class="text-stone-500 hover:text-rust-400 text-xs" title="完全擦除"><i class="fa-solid fa-trash"></i></button>
+          </div>
+          <p class="text-xs text-amber-100/90 leading-relaxed font-serif">${escapeHtml(d.text)}</p>
+          ${d.imgUrl ? `<img src="${d.imgUrl}" class="w-full max-h-48 object-cover rounded border border-stone-800" />` : ''}
+        </div>
+      `).join('');
+    }
+
+    /* CRUD Operations */
+    function openAddTaskModal() {
+      document.getElementById('taskModalTitle').innerText = "写入打卡纸条";
+      document.getElementById('editTaskId').value = "";
+      document.getElementById('taskTitleInput').value = "";
+      document.getElementById('taskDescInput').value = "";
+      populateGoalDropdown();
+      openModal('taskModal');
+    }
+
+    function openEditTaskModal(id) {
+      const task = state.tasks.find(t => t.id === id);
+      if (!task) return;
+      document.getElementById('taskModalTitle').innerText = "修改打卡纸条";
+      document.getElementById('editTaskId').value = task.id;
+      document.getElementById('taskTitleInput').value = task.title;
+      document.getElementById('taskDescInput').value = task.desc || "";
+      populateGoalDropdown(task.goalId);
+      openModal('taskModal');
+    }
+
+    function populateGoalDropdown(selectedId = '') {
+      const select = document.getElementById('taskGoalSelect');
+      select.innerHTML = `<option value="">-- 独立打卡任务 --</option>` +
+        state.goals.map(g => `<option value="${g.id}" ${g.id === selectedId ? 'selected' : ''}>${escapeHtml(g.title)}</option>`).join('');
+    }
+
+    function saveTask() {
+      const id = document.getElementById('editTaskId').value;
+      const title = document.getElementById('taskTitleInput').value.trim();
+      const desc = document.getElementById('taskDescInput').value.trim();
+      const goalId = document.getElementById('taskGoalSelect').value;
+
+      if (!title) return alert("请写入任务名称！");
+
+      if (id) {
+        const t = state.tasks.find(x => x.id === id);
+        if (t) { t.title = title; t.desc = desc; t.goalId = goalId; }
+      } else {
+        state.tasks.push({ id: 't-' + Date.now(), title, desc, completed: false, goalId });
+      }
+
+      saveState();
+      renderAll();
+      closeModal('taskModal');
+      playSound('swallow');
+    }
+
+    function toggleTask(id) {
+      const t = state.tasks.find(x => x.id === id);
+      if (t) {
+        t.completed = !t.completed;
+        saveState();
+        renderAll();
+      }
+    }
+
+    function swallowDeleteTask(id) {
+      playSound('swallow');
+      state.tasks = state.tasks.filter(x => x.id !== id);
+      saveState();
+      renderAll();
+    }
+
+    function openAddGoalModal() {
+      document.getElementById('goalModalTitle').innerText = "铭刻近期誓约 (Goal)";
+      document.getElementById('editGoalId').value = "";
+      document.getElementById('goalTitleInput').value = "";
+      document.getElementById('goalTargetInput').value = "7";
+      document.getElementById('goalDaysInput').value = "14";
+      document.getElementById('goalDescInput').value = "";
+      openModal('goalModal');
+    }
+
+    function openEditGoalModal(id) {
+      const g = state.goals.find(x => x.id === id);
+      if (!g) return;
+      document.getElementById('goalModalTitle').innerText = "修改近期誓约";
+      document.getElementById('editGoalId').value = g.id;
+      document.getElementById('goalTitleInput').value = g.title;
+      document.getElementById('goalTargetInput').value = g.target;
+      document.getElementById('goalDaysInput').value = g.days || 14;
+      document.getElementById('goalDescInput').value = g.desc || "";
+      openModal('goalModal');
+    }
+
+    function saveGoal() {
+      const id = document.getElementById('editGoalId').value;
+      const title = document.getElementById('goalTitleInput').value.trim();
+      const target = parseInt(document.getElementById('goalTargetInput').value) || 7;
+      const days = parseInt(document.getElementById('goalDaysInput').value) || 14;
+      const desc = document.getElementById('goalDescInput').value.trim();
+
+      if (!title) return alert("请写入誓约名称！");
+
+      if (id) {
+        const g = state.goals.find(x => x.id === id);
+        if (g) { g.title = title; g.target = target; g.days = days; g.desc = desc; }
+      } else {
+        state.goals.push({ id: 'g-' + Date.now(), title, target, current: 0, days, desc });
+      }
+
+      saveState();
+      renderAll();
+      closeModal('goalModal');
+      playSound('key');
+    }
+
+    function deleteGoal(id) {
+      if (confirm("确定要将此誓约彻底抹去吗？")) {
+        state.goals = state.goals.filter(x => x.id !== id);
+        state.tasks.forEach(t => { if (t.goalId === id) t.goalId = ''; });
+        saveState();
+        renderAll();
+      }
+    }
+
+    function deleteDiary(id) {
+      if (confirm("擦除日记将彻底散去记忆。确定擦除吗？")) {
+        state.diaries = state.diaries.filter(d => d.id !== id);
+        saveState();
+        renderAll();
+      }
+    }
+
+    /* Modal Helpers & secure proxy config */
+    function openModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+      if (id === 'settingsModal') {
+        document.getElementById('proxyUrlInput').value = state.proxyUrl;
+        document.getElementById('proxyTokenInput').value = '';
+      }
+    }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+    async function saveProxyConfig() {
+      const rawUrl = document.getElementById('proxyUrlInput').value.trim();
+      const token = document.getElementById('proxyTokenInput').value;
+      try {
+        const url = new URL(rawUrl);
+        const localDev = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+        if (url.protocol !== 'https:' && !localDev) throw new Error('代理必须使用 HTTPS');
+        if (url.username || url.password || url.search || url.hash) throw new Error('地址不能包含凭据、查询参数或片段');
+        if (!token || token.length < 24) throw new Error('访问令牌至少需要 24 个字符');
+
+        state.proxyUrl = url.toString();
+        state.proxyToken = token;
+        const health = await callSecureProxy('health', {});
+        if (!health.ok) throw new Error('代理健康检查未通过');
+        localStorage.setItem(KEY_PROXY_URL, state.proxyUrl);
+        updateProxyStatus();
+        closeModal('settingsModal');
+        setDialogueText('安全代理已连接。湖底的回声已被密钥封存在服务端。');
+      } catch (error) {
+        state.proxyToken = '';
+        updateProxyStatus();
+        alert(error.message || '无法连接安全代理');
+      }
+    }
+
+    function updateProxyStatus() {
+      const dot = document.getElementById('proxyStatusDot');
+      const connected = Boolean(state.proxyUrl && state.proxyToken);
+      dot.className = connected ? "w-2 h-2 rounded-full bg-emerald-500" : "w-2 h-2 rounded-full bg-amber-500";
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+  </script>
+</body>
+</html>
