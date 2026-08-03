@@ -7,6 +7,14 @@ const JSON_HEADERS = {
 
 const MAX_BODY_BYTES = 32 * 1024;
 
+class UpstreamError extends Error {
+  constructor(status) {
+    super(`Gemini upstream status ${status}`);
+    this.name = 'UpstreamError';
+    this.upstreamStatus = status;
+  }
+}
+
 function allowedOrigins(env) {
   return new Set((env.ALLOWED_ORIGINS || '').split(',').map(v => v.trim()).filter(Boolean));
 }
@@ -51,7 +59,8 @@ async function googleRequest(model, operation, payload, env) {
 
   if (!response.ok) {
     // Do not forward Google's response body: it may contain implementation details.
-    throw new Error(`Upstream request failed with status ${response.status}`);
+    console.error('Gemini upstream request failed', { model, operation, status: response.status });
+    throw new UpstreamError(response.status);
   }
   return response.json();
 }
@@ -75,24 +84,14 @@ async function handleText(input, env) {
     };
   }
 
-  const result = await googleRequest('gemini-2.5-flash', 'generateContent', payload, env);
+  const result = await googleRequest('gemini-3.5-flash-lite', 'generateContent', payload, env);
   const text = result?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new Error('Empty model response');
   return { text };
 }
 
 async function handleImage(input, env) {
-  if (typeof input.prompt !== 'string' || input.prompt.length > 8000) {
-    throw new TypeError('Invalid image prompt');
-  }
-  const payload = {
-    instances: [{ prompt: `Vintage dark hand-drawn sepia woodcut illustration, gothic surreal lakeside lodge: ${input.prompt}` }],
-    parameters: { sampleCount: 1 }
-  };
-  const result = await googleRequest('imagen-4.0-generate-001', 'predict', payload, env);
-  const data = result?.predictions?.[0]?.bytesBase64Encoded;
-  if (!data) throw new Error('Empty image response');
-  return { data, mimeType: 'image/png' };
+  throw new TypeError('免费层未启用图片生成');
 }
 
 async function handleTts(input, env) {
@@ -108,7 +107,7 @@ async function handleTts(input, env) {
       speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } }
     }
   };
-  const result = await googleRequest('gemini-2.5-flash-preview-tts', 'generateContent', payload, env);
+  const result = await googleRequest('gemini-3.1-flash-tts-preview', 'generateContent', payload, env);
   const part = result?.candidates?.[0]?.content?.parts?.[0];
   const data = part?.inlineData?.data;
   if (!data) throw new Error('Empty speech response');
@@ -159,7 +158,9 @@ export default {
       return jsonResponse({ ...output, requestId }, 200, origin, env);
     } catch (error) {
       const status = error instanceof TypeError || error instanceof RangeError ? 400 : 502;
-      return jsonResponse({ error: status === 400 ? error.message : 'AI service unavailable', requestId }, status, origin, env);
+      const body = { error: status === 400 ? error.message : 'AI service unavailable', requestId };
+      if (error instanceof UpstreamError) body.upstreamStatus = error.upstreamStatus;
+      return jsonResponse(body, status, origin, env);
     }
   }
 };

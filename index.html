@@ -851,15 +851,28 @@
         body: JSON.stringify({ action, ...payload })
       });
       const result = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(result.error || `安全代理错误 ${response.status}`);
+      if (!response.ok) {
+        const upstream = result.upstreamStatus ? `（Gemini ${result.upstreamStatus}）` : '';
+        const error = new Error(`${result.error || `安全代理错误 ${response.status}`}${upstream}`);
+        error.status = response.status;
+        error.upstreamStatus = result.upstreamStatus || 0;
+        throw error;
+      }
       return result;
+    }
+
+    function shouldRetryProxyError(error) {
+      if (error.upstreamStatus) {
+        return error.upstreamStatus === 408 || error.upstreamStatus === 429 || error.upstreamStatus >= 500;
+      }
+      return error.status === 408 || error.status === 429 || error.status >= 500;
     }
 
     /* 1. Gemini Text Generation through the server-side proxy */
     async function callGeminiAPI(systemPrompt, userPrompt, jsonSchema = null) {
       let retries = 0;
-      const maxRetries = 3;
-      let delay = 1000;
+      const maxRetries = 1;
+      let delay = 3000;
 
       while (retries <= maxRetries) {
         try {
@@ -868,8 +881,8 @@
           throw new Error('代理返回格式无效');
         } catch (err) {
           retries++;
-          if (retries > maxRetries) throw err;
-          await new Promise(r => setTimeout(r, delay));
+          if (retries > maxRetries || !shouldRetryProxyError(err)) throw err;
+          await new Promise(r => setTimeout(r, delay + Math.random() * 500));
           delay *= 2;
         }
       }
@@ -878,8 +891,8 @@
     /* 2. Gemini Imagen generation through the server-side proxy */
     async function generateImagenImage(promptText) {
       let retries = 0;
-      const maxRetries = 2;
-      let delay = 1000;
+      const maxRetries = 1;
+      let delay = 2000;
 
       while (retries <= maxRetries) {
         try {
@@ -888,8 +901,8 @@
           throw new Error('代理未返回图像');
         } catch (err) {
           retries++;
-          if (retries > maxRetries) throw err;
-          await new Promise(r => setTimeout(r, delay));
+          if (retries > maxRetries || !shouldRetryProxyError(err)) throw err;
+          await new Promise(r => setTimeout(r, delay + Math.random() * 500));
           delay *= 2;
         }
       }
@@ -1292,7 +1305,6 @@
       try {
         const reply = await callGeminiAPI(sysPrompt, userPrompt);
         setDialogueText(reply);
-        generateGeminiTTS(reply, voice);
       } catch (err) {
         if (npcId === 'checkin') setDialogueText("“……” (屏息先生静静地注视着你，喉头咽下一张硬纸片。)");
         else if (npcId === 'crucible') setDialogueText("“完成的事比较甜…… 把记忆放进来吧。”");
@@ -1312,7 +1324,7 @@
         const result = await callGeminiAPI(sys, `现实任务：${text}`);
         input.value = result.trim().replace(/^["'“]/, '').replace(/["'”]$/, '');
       } catch (e) {
-        alert("Gemini 转换失败，请检查 API Key");
+        alert(`Gemini 转换失败：${e.message}`);
       }
     }
 
@@ -1326,7 +1338,7 @@
         const result = await callGeminiAPI(sys, `长期目标：${text}`);
         input.value = result.trim().replace(/^["'“]/, '').replace(/["'”]$/, '');
       } catch (e) {
-        alert("Gemini 转换失败，请检查 API Key");
+        alert(`Gemini 转换失败：${e.message}`);
       }
     }
 
@@ -1413,7 +1425,7 @@
         dateOutput.innerText = newEntry.date;
         textOutput.innerText = story;
 
-        document.getElementById('btnGenerateDiaryImg').classList.remove('hidden');
+        document.getElementById('btnGenerateDiaryImg').classList.add('hidden');
 
       } catch (err) {
         clearInterval(bubbleInterval);
@@ -1448,7 +1460,7 @@
           }
         }
       } catch (e) {
-        alert("Imagen 图片生成失败，请检查 API Key");
+        alert(`Imagen 图片生成失败：${e.message}`);
       } finally {
         btn.disabled = false;
         btn.innerHTML = `<i class="fa-solid fa-palette text-amber-400"></i> 使用 Imagen 凝结记忆图景`;
@@ -1479,7 +1491,6 @@
       try {
         const prophecy = await callGeminiAPI(sysPrompt, userPrompt);
         prophecyText.innerText = prophecy;
-        generateGeminiTTS(prophecy, 'Zephyr');
       } catch (err) {
         prophecyText.innerText = "当第七下钟声在湖底重响时，第13号黄铜锁箱将自动解开。在此之前，只需注视着水下的齿轮。";
       }
@@ -1528,7 +1539,6 @@
           </div>
         `;
         chatBox.scrollTop = chatBox.scrollHeight;
-        generateGeminiTTS(reply, voice);
       } catch (e) {
         chatBox.innerHTML += `<div class="text-xs text-rust-400 italic">住客在低语中隐匿了声音...</div>`;
       } finally {
